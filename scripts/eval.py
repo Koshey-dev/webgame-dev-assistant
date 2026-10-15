@@ -30,7 +30,7 @@ def norm(text):
     text = text.lower().replace("×", "x").replace("ё", "е")
     text = re.sub(r"[—–‑]", "-", text)
     text = re.sub(r"(\d)\s+(?=[\dx-])|(?<=[x-])\s+(?=\d)", r"\1", text)
-    return text
+    return re.sub(r"(?<=\d),(?=\d{3}\b)", "", text)          # «1,000» — это 1000
 
 
 def grade(q, done):
@@ -84,11 +84,26 @@ def summary(results):
     return out
 
 
+def regrade(path):
+    """Пересчитать сохранённый прогон после правки сверки — без нового вызова модели."""
+    questions = {q["id"]: q for q in tomllib.loads((ROOT / "eval" / "questions.toml").read_text(encoding="utf-8"))["q"]}
+    report = json.loads(Path(path).read_text(encoding="utf-8"))
+    report["results"] = [r for r in report["results"] if r["id"] in questions]    # вопрос убран из набора
+    for r in report["results"]:
+        r["ok"] = grade(questions[r["id"]], {"text": r["text"], "refusal": r["refusal"]})
+    report["summary"] = summary(report["results"])
+    Path(path).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(json.dumps(report["summary"], ensure_ascii=False))
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("model", choices=["local", "deepseek"])
+    ap.add_argument("model", choices=["local", "deepseek", "regrade"])
     ap.add_argument("--rounds", type=int, default=1)
+    ap.add_argument("--file", help="для regrade: путь к отчёту из data/eval/")
     args = ap.parse_args()
+    if args.model == "regrade":
+        return regrade(args.file)
     provider, results = asyncio.run(run(args.model, args.rounds))
     s = summary(results)
     print(json.dumps(s, ensure_ascii=False))
