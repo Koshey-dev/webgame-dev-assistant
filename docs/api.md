@@ -12,8 +12,15 @@
 | GET | `/api/chats/{ident}` | Чат целиком: реплики и следы ответов (этапы, найденное, вызовы MCP, источники). |
 | DELETE | `/api/chats/{ident}` | Удалить чат. |
 | POST | `/api/chats/{ident}/send` | Ход чата потоком NDJSON: этапы, найденное, вызовы MCP, текст, источники. |
+| POST | `/api/review` | Ревью PR для GitHub Action: diff и файлы → замечания и готовый комментарий; нужен токен `REVIEW_TOKEN`. |
 
 ## Тело `POST /api/chats/{ident}/send`
+
+`SendIn`:
+
+- `text` — string
+- `model` — string
+- `custom` — Custom | null
 
 `Custom`:
 
@@ -21,11 +28,23 @@
 - `model` — string
 - `key` — string
 
-`SendIn`:
 
-- `text` — string
-- `model` — string
-- `custom` — Custom | null
+## Тело `POST /api/review`
+
+`ReviewIn`:
+
+- `repo` — string
+- `pr` — integer
+- `title` — string
+- `head` — string
+- `diff` — string
+- `files` — array
+
+`ReviewFile`:
+
+- `path` — string
+- `status` — string
+- `content` — string | null
 
 ## События потока
 

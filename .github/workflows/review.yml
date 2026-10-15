@@ -1,0 +1,34 @@
+# AI-ревью PR: diff уходит на сервер ассистента, ответ — один комментарий в PR.
+# Ключ модели и индекс остаются на сервере; здесь только токен входа REVIEW_TOKEN
+# (секрет) и адрес REVIEW_URL (переменная репозитория).
+name: AI-ревью
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # PR из форка секретов не получает — такие PR не ревьюятся.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Ревью на сервере ассистента
+        run: python3 scripts/review_pr.py
+        env:
+          REVIEW_URL: ${{ vars.REVIEW_URL }}
+          REVIEW_TOKEN: ${{ secrets.REVIEW_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          TITLE: ${{ github.event.pull_request.title }}

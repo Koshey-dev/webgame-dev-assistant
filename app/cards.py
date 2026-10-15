@@ -18,6 +18,7 @@
 
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 from . import config, db
@@ -29,9 +30,13 @@ DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 def parse(path):
     """{'platform', 'title', 'cards': [...]} из файла карточек."""
     path = Path(path)
-    text = path.read_text(encoding="utf-8")
+    return parse_text(path.stem, path.read_text(encoding="utf-8"))
+
+
+def parse_text(platform, text):
+    """То же из текста — для ревью PR, где файл приходит в запросе."""
     title = re.search(r"^#\s+(.+)$", text, re.M)
-    out = {"platform": path.stem, "title": title.group(1).strip() if title else path.stem, "cards": []}
+    out = {"platform": platform, "title": title.group(1).strip() if title else platform, "cards": []}
     card = None
     for n, line in enumerate(text.splitlines(), 1):
         if line.startswith("## "):
@@ -72,6 +77,8 @@ def problems(card, pages):
         bad.append("нет «Цитата»")
     if not DATE.match(card["checked"]):
         bad.append("«Сверено» не в виде ГГГГ-ММ-ДД")
+    elif card["checked"] > date.today().isoformat():
+        bad.append(f"«Сверено» в будущем: {card['checked']}")
     page = pages.get(card["source"])
     if page is None:
         bad.append(f"источника нет в базе: {card['source'] or '—'}")

@@ -32,6 +32,9 @@ PROXY = os.environ.get("LLM_PROXY") or None
 # До шага авто-подбора умолчание задаётся руками: на VPS — DeepSeek.
 DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL") or "deepseek"
 
+# Токен ревью PR: им GitHub Action заходит на /api/review. Нет токена — ревью выключено.
+REVIEW_TOKEN = os.environ.get("REVIEW_TOKEN") or ""
+
 # Репозиторий, который видит MCP git: по умолчанию — свой.
 REPO = Path(os.environ.get("WDA_REPO") or ROOT)
 

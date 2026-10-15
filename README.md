@@ -8,6 +8,8 @@ GameDistribution, itch.io, Playdeck), с источниками и дослов�
 
 Проект — сдача недели 7 курса AI Challenge (дни 31–35). День 31: ассистент
 разработчика — RAG по документации проекта, MCP с git-веткой, команда `/help`.
+День 32: AI-ревью PR — GitHub Action отдаёт diff серверу ассистента, ответ
+приходит комментарием в PR.
 
 ## Что умеет
 
@@ -20,13 +22,17 @@ GameDistribution, itch.io, Playdeck), с источниками и дослов�
   Код всегда берёт текущую ветку у MCP-сервера git (`git_branch`), документы
   ищутся в базе «Проект» (README и `docs/`), остальные git-инструменты
   (`git_status`, `git_log`, `list_files`) модель вызывает сама, если нужно.
+- **Ревью PR.** На каждый PR в этот репозиторий GitHub Action шлёт diff и
+  изменённые файлы на сервер, ассистент отвечает комментарием в PR: потенциальные
+  баги, архитектурные проблемы, рекомендации — с файлом, строкой и ссылками на
+  документацию и код проекта. Карточки `knowledge/` из PR сверяет код.
 - **`/platforms`** — какие площадки в базе, сколько карточек и страниц, когда
   сверяли. **`/model`** — какая модель отвечает.
 - **Выбор модели:** локальная в Ollama, DeepSeek или «свой API» — любой
   OpenAI-совместимый сервис; его адрес, модель и ключ хранятся только в
   браузере и уходят с каждым запросом.
 
-## Три базы
+## Базы
 
 | База | Что внутри | Где лежит |
 |------|------------|-----------|
@@ -34,6 +40,7 @@ GameDistribution, itch.io, Playdeck), с источниками и дослов�
 | Площадки — страницы | тексты официальных страниц требований (85 страниц) | `data/assistant.db`, собирает сервер |
 | Мой опыт | чек-листы разработчика из своих проектов | `data/notes/*.md`, только на сервере |
 | Проект | README и `docs/` | в git |
+| Код | исходники ассистента по функциям и классам — для ревью PR | в git |
 
 Карточки — проверенная основа: каждая цитата сверяется с текстом страницы
 кодом (`py -m app.cards check`), не нашлась — карточка не годится. Карточки в
@@ -65,7 +72,7 @@ python -m uvicorn app.main:app --port 8010
 
 ```bash
 cd /opt/webgame-dev-assistant
-git fetch --tags && git checkout day31
+git fetch --tags && git checkout day32
 deploy/setup.sh                              # зависимости, страницы, сверка карточек, индекс
 sudo systemctl restart webgame-assistant
 ```
@@ -74,6 +81,25 @@ sudo systemctl restart webgame-assistant
 служба из `deploy/webgame-assistant.service`, блок Caddy из `deploy/Caddyfile.webgame`
 (пароль чата — basic auth Caddy, хеш через `caddy hash-password`).
 «Мой опыт» кладётся в `data/notes/` отдельно, в git его нет.
+
+## Ревью PR
+
+`.github/workflows/review.yml` запускается на PR из своего репозитория и вызывает
+`scripts/review_pr.py`: тот берёт diff от точки ветвления и полные тексты
+изменённых файлов, отправляет их на `POST /api/review` и пишет ответ одним
+комментарием в PR (новый пуш обновляет его). Ключ модели, индекс и сама модель
+остаются на сервере; раннеру нужен только `python3`. Ход ревью — в
+`docs/architecture.md`.
+
+Подключить:
+
+1. На сервере в `.env` — `REVIEW_TOKEN` (`openssl rand -hex 32`), перезапуск службы;
+   в Caddy путь `/api/review` открыт без пароля чата (`deploy/Caddyfile.webgame`).
+2. В репозитории — секрет `REVIEW_TOKEN` (тот же токен) и переменная `REVIEW_URL`
+   (`https://<сервер>/api/review`).
+
+Контрольный набор — `eval/review.toml`: подложенные ошибки в настоящем коде
+проекта и чистые правки, прогон `py scripts/eval_review.py`.
 
 ## Настройки (`.env`)
 
@@ -85,6 +111,7 @@ sudo systemctl restart webgame-assistant
 | `OLLAMA_URL` | адрес Ollama | `http://127.0.0.1:11434` |
 | `EMBED_MODEL` | модель эмбеддингов | `embeddinggemma:300m-qat-q8_0` |
 | `DEFAULT_MODEL` | модель по умолчанию в чате: `local`, `deepseek` | `deepseek` |
+| `REVIEW_TOKEN` | токен входа GitHub Action на `/api/review`; пусто — ревью выключено | — |
 | `RAG_THRESHOLD` | порог косинуса для «в базе этого нет» (подобран контрольным набором) | `0.54` |
 | `LLM_PROXY` | SOCKS-прокси для облачных моделей | — |
 | `WDA_DATA` | папка данных сервера | `data/` |
@@ -96,6 +123,8 @@ sudo systemctl restart webgame-assistant
 |------|---------|
 | `app/main.py` | FastAPI: чат, API чатов, MCP-сервер git на `/mcp/git` |
 | `app/answer.py` | ход ассистента: переписать запрос, поиск, порог, ответ модели, источники; `/help` с MCP |
+| `app/review.py` | ревью PR: разбор diff, сверка карточек, контекст, ответ модели JSON, комментарий |
+| `app/codecut.py` | база «Код»: исходники кусками по функциям и классам |
 | `app/rag.py` | резка по разделам, эмбеддинги, индекс, поиск |
 | `app/crawl.py` | сбор официальных страниц из `sources.toml` |
 | `app/htmltext.py` | основной текст страницы из HTML в markdown |
@@ -110,6 +139,10 @@ sudo systemctl restart webgame-assistant
 | `sources.toml` | реестр официальных источников |
 | `docs/` | архитектура, API, схема данных |
 | `scripts/gen_docs.py` | генерация `docs/api.md` и `docs/data.md` из кода |
+| `scripts/review_pr.py` | клиент ревью для GitHub Action: diff → сервер → комментарий в PR |
+| `scripts/eval.py`, `scripts/eval_review.py` | прогон контрольных наборов чата и ревью |
+| `.github/workflows/review.yml` | AI-ревью на каждый PR |
+| `eval/` | контрольные наборы: вопросы чата, кейсы ревью |
 | `deploy/` | служба systemd и блок Caddy для сервера |
 | `tests/` | pytest |
 

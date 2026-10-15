@@ -1,11 +1,21 @@
 # Блок для /etc/caddy/Caddyfile. Хеш пароля — `caddy hash-password`, сам пароль
 # лежит только в .env сервера (WEB_PASSWORD), в git — никогда.
 # flush_interval -1: ответ чата идёт потоком NDJSON, буфер Caddy его бы задержал.
+# /api/review — без пароля чата: GitHub Action входит по токену REVIEW_TOKEN,
+# его проверяет приложение.
 webgame.91.188.212.179.nip.io {
-	basic_auth {
-		dev <bcrypt-hash>
+	handle /api/review {
+		request_body {
+			max_size 4MB
+		}
+		reverse_proxy 127.0.0.1:8010
 	}
-	reverse_proxy 127.0.0.1:8010 {
-		flush_interval -1
+	handle {
+		basic_auth {
+			dev <bcrypt-hash>
+		}
+		reverse_proxy 127.0.0.1:8010 {
+			flush_interval -1
+		}
 	}
 }

@@ -1,19 +1,20 @@
-"""Веб-приложение: чат, API для него и MCP-сервер git.
+"""Веб-приложение: чат, API для него, ревью PR и MCP-сервер git.
 
     py -m uvicorn app.main:app --port 8010
 """
 
+import hmac
 import json
 import time
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import answer, config, db, mcp, providers, rag
+from . import answer, config, db, mcp, providers, rag, review
 from .crawl import load_sources
 from .gittools import SERVER as GIT
 
@@ -168,3 +169,33 @@ async def static(text, provider):
     yield {"type": "delta", "text": text}
     yield {"type": "done", "text": text, "refusal": False, "sources": [], "model": "без модели",
            "first_ms": 0, "total_ms": 0}
+
+
+class ReviewFile(BaseModel):
+    path: str
+    status: str = "modified"
+    content: str | None = None
+
+
+class ReviewIn(BaseModel):
+    repo: str = ""
+    pr: int = 0
+    title: str = ""
+    head: str = ""
+    diff: str
+    files: list[ReviewFile] = []
+
+
+@app.post("/api/review")
+async def review_pr(body: ReviewIn, authorization: str = Header("")):
+    """Ревью PR для GitHub Action: diff и файлы → замечания и готовый комментарий; нужен токен `REVIEW_TOKEN`.
+
+    Путь открыт без пароля чата (Caddy), поэтому вход — только по Bearer-токену."""
+    if not config.REVIEW_TOKEN:
+        raise HTTPException(503, "ревью выключено: на сервере нет REVIEW_TOKEN")
+    if not hmac.compare_digest(authorization.encode(), f"Bearer {config.REVIEW_TOKEN}".encode()):
+        raise HTTPException(401, "нужен токен ревью")
+    try:
+        return await review.run(body.model_dump(), providers.resolve("deepseek"))
+    except (providers.ProviderError, review.ReviewError) as e:
+        raise HTTPException(502, f"ревью не получилось: {e}")
