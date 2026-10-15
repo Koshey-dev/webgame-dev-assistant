@@ -44,3 +44,17 @@ def test_store_new_same_changed_and_failure_keeps_text():
     assert store(conn, "poki", url, "blocked", "", "HTTP 403") == "blocked"
     row = conn.execute("SELECT status, text FROM pages WHERE url = ?", (url,)).fetchone()
     assert row["status"] == "blocked" and row["text"].startswith("другой")
+
+
+def test_robots_question_mark_rule_does_not_block_all():
+    from app import robots
+    text = ("User-agent: *\nDisallow: /?\nDisallow: *maps/covid19*\nDisallow: /search$\nAllow: /images/$\n"
+            "Disallow: /images/\n\nUser-agent: Bingbot\nDisallow: /\n")
+    g = robots.parse(text)
+    ua = "webgame-dev-assistant/0.1 (+https://github.com/x)"
+    assert robots.allowed(g, ua, "/dev/games/doc/ru/concepts/requirements.md")
+    assert not robots.allowed(g, ua, "/?text=1")
+    assert not robots.allowed(g, ua, "/ru/maps/covid19/x")
+    assert not robots.allowed(g, ua, "/search") and robots.allowed(g, ua, "/search/x")
+    assert robots.allowed(g, ua, "/images/") and not robots.allowed(g, ua, "/images/a.png")
+    assert not robots.allowed(g, "Bingbot/2.0", "/dev/")

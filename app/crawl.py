@@ -17,11 +17,10 @@ import time
 import tomllib
 from datetime import datetime, timezone
 from urllib.parse import urlparse
-from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from . import config, db
+from . import config, db, robots
 from .htmltext import html_to_markdown
 
 PAUSE = {"itch.io": 3.0}     # itch.io отвечает 429 на частые запросы
@@ -62,28 +61,31 @@ def title_of(text, fallback):
 
 
 class Fetcher:
-    """HTTP с вежливостью: свой User-Agent, robots.txt и пауза на хост."""
+    """HTTP с вежливостью: свой User-Agent, robots.txt и пауза на хост.
+
+    Хост не отвечает напрямую — повтор через прокси сервера (`LLM_PROXY`):
+    с VPS yandex.ru то соединяется, то нет, а через узел VPN отвечает стабильно."""
 
     def __init__(self, client=None):
-        self.client = client or httpx.Client(headers={"User-Agent": config.USER_AGENT},
-                                             follow_redirects=True, timeout=30)
+        options = {"headers": {"User-Agent": config.USER_AGENT}, "follow_redirects": True, "timeout": 30}
+        self.client = client or httpx.Client(**options)
+        self.proxied = httpx.Client(proxy=config.PROXY, **options) if config.PROXY and not client else None
         self.robots = {}
         self.last = {}
 
     def allowed(self, url):
-        host = urlparse(url)
-        key = f"{host.scheme}://{host.netloc}"
+        parts = urlparse(url)
+        key = f"{parts.scheme}://{parts.netloc}"
         if key not in self.robots:
-            rules = RobotFileParser()
             try:
-                r = self.client.get(f"{key}/robots.txt")
+                r = self.get(f"{key}/robots.txt")
                 # VK отдаёт на robots.txt HTML-страницу «404» — это не правила.
                 ok = r.status_code == 200 and "text/plain" in r.headers.get("content-type", "")
-                rules.parse(r.text.splitlines() if ok else [])
+                self.robots[key] = robots.parse(r.text if ok else "")
             except httpx.HTTPError:
-                rules.parse([])
-            self.robots[key] = rules
-        return self.robots[key].can_fetch(config.USER_AGENT, url)
+                self.robots[key] = {}
+        path = parts.path or "/"
+        return robots.allowed(self.robots[key], config.USER_AGENT, path + (f"?{parts.query}" if parts.query else ""))
 
     def get(self, url):
         host = urlparse(url).netloc
@@ -93,6 +95,10 @@ class Fetcher:
             time.sleep(wait)
         try:
             return self.client.get(url)
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout):
+            if not self.proxied:
+                raise
+            return self.proxied.get(url)
         finally:
             self.last[host] = time.monotonic()
 
