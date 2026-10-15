@@ -94,18 +94,23 @@ old = '''Чат открывается на `http://127.0.0.1:8010/`.'''
 new = '''После запуска чат открывается на `http://127.0.0.1:8010/`.'''
 
 [[case]]
-id = "clean-refactor"
+id = "clean-rename"
 kind = "clean"
-title = "Доля мест площадки через math.ceil"
+title = "merged: понятнее имя словаря"
 file = "app/answer.py"
+# Был кейс «-(-a // b) → math.ceil(a / b)»: модель в 2 из 3 кругов назвала его
+# багом — и права: деление через float теряет точность выше 2**53. Чистая правка
+# должна быть равносильной в точности.
 [[case.edit]]
-old = '''import re
-import time
-'''
-new = '''import math
-import re
-import time
-'''
-[[case.edit]]
-old = '''    cap = -(-MAX_FRAGMENTS // len(platforms)) if platforms and len(platforms) > 1 else MAX_FRAGMENTS'''
-new = '''    cap = math.ceil(MAX_FRAGMENTS / len(platforms)) if platforms and len(platforms) > 1 else MAX_FRAGMENTS'''
+old = '''    best = {}
+    for hits in lists:
+        for h in hits:
+            if h["id"] not in best or h["score"] > best[h["id"]]["score"]:
+                best[h["id"]] = h
+    return sorted(best.values(), key=lambda h: -h["score"])'''
+new = '''    top = {}
+    for hits in lists:
+        for h in hits:
+            if h["id"] not in top or h["score"] > top[h["id"]]["score"]:
+                top[h["id"]] = h
+    return sorted(top.values(), key=lambda h: -h["score"])'''
