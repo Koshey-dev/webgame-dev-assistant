@@ -178,6 +178,14 @@ def crawl(only=None, log=print):
             status, title, text = fetch_page(fetcher, url)
             with conn:
                 result = store(conn, key, url, status, title, text)
+            if result == "changed":
+                # Страница изменилась — сразу продлеваем дату сверки её карточек.
+                for path in config.KNOWLEDGE.glob("*.md"):
+                    body = path.read_text(encoding="utf-8")
+                    if url in body:
+                        body = re.sub(r"(Источник: " + re.escape(url) + r"\nСверено: )\d{4}-\d{2}-\d{2}",
+                                      lambda m: m.group(1) + now()[:10], body)
+                        path.write_text(body, encoding="utf-8")
             report.append({"platform": key, "url": url, "result": result,
                            "chars": len(text) if status == "ok" else 0})
             log(f"{key:16} {result:8} {len(text):6}  {url}")

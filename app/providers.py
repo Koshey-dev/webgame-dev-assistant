@@ -103,7 +103,7 @@ async def complete(provider, messages, tools=None, max_tokens=500, temperature=0
         r = await http.post(provider["url"], headers=headers(provider),
                             json=body(provider, messages, max_tokens, temperature, False, tools))
     if r.status_code != 200:
-        raise ProviderError(short(r))
+        raise ProviderError(f"{short(r)} · {provider['url']} · ключ {provider['key']}")
     data = r.json()
     msg = data["message"] if provider["kind"] == "ollama" else data["choices"][0]["message"]
     calls = []

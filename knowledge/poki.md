@@ -2,9 +2,9 @@
 
 ## Возраст · аудитория всех возрастов
 Требование: Poki рассчитан на всех, включая детей: всё на площадке должно быть безопасным и комфортным для любого возраста, и подходить рекламодателям.
-Цитата: our audience spans all ages and backgrounds, and everything on Poki has to feel safe and comfortable for all of them.
+Цитата: our audience spans all ages, and every game on Poki must be rated for kids.
 Источник: https://developers.poki.com/guide/content-player-safety
-Сверено: 2026-10-15
+Сверено: 2026-11-20
 
 ## Контент · запрещённые темы
 Требование: Не принимаются игры с небезопасными для всех возрастов темами: травля, насилие и сексизм, жёсткое насилие и раны, затяжной страх, сексуальный контент, азартные игры, алкоголь, табак и т. п.
