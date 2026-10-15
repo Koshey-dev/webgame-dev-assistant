@@ -141,7 +141,7 @@ async def send(ident: str, body: SendIn, request: Request):
             else:
                 stream = answer.ask(text, history, provider)
             async for event in stream:
-                if request.is_disconnected():
+                if await request.is_disconnected():
                     break
                 if event["type"] == "delta":
                     reply += event["text"]
