@@ -1,0 +1,127 @@
+# Официальные источники требований площадок.
+#
+# У площадки либо `list` — файл со списком страниц (llms.txt), из которого
+# берутся адреса, подходящие под `include`, — либо явный список `pages`, либо
+# оба. `.md` берётся как есть, остальное — HTML, из которого вырезается
+# основной текст. `every` — как часто сервер сверяет площадку.
+#
+# Сюда не входят: Newgrounds (403 на любой скрипт), Facebook Instant Games
+# (robots.txt запрещает автоматический сбор без разрешения Meta), Kongregate и
+# Armor Games (публичных требований нет).
+
+[platforms.yandex]
+title = "Яндекс Игры"
+tier = 1
+every = "day"
+list = "https://yandex.ru/dev/games/doc/ru/llms.txt"
+include = [
+  "/requirements/",
+  "/concepts/(requirements|moderation|performance|quick-start|start-screen|languages-and-domains|troubleshooting|ranking-and-featuring)\\.md$",
+  "/sdk/sdk-(about|game-events|adv|purchases|player|environment|params|review|shortcut|other-games)\\.md$",
+  "/services/about-monetization\\.md$",
+]
+
+[platforms.vk]
+title = "VK Игры"
+tier = 1
+every = "day"
+pages = [
+  "https://dev.vk.ru/ru/games/catalog/moderation",
+  "https://dev.vk.ru/ru/games/settings/moderation",
+  "https://dev.vk.ru/ru/games/catalog/advice",
+  "https://dev.vk.ru/ru/mini-apps-rules",
+]
+
+[platforms.ok]
+title = "Одноклассники"
+tier = 1
+every = "day"
+pages = [
+  "https://dev.vk.ru/ru/ok/publishing",
+]
+
+[platforms.crazygames]
+title = "CrazyGames"
+tier = 1
+every = "day"
+pages = [
+  "https://docs.crazygames.com/requirements/intro/",
+  "https://docs.crazygames.com/requirements/technical/",
+  "https://docs.crazygames.com/requirements/quality/",
+  "https://docs.crazygames.com/requirements/gameplay/",
+  "https://docs.crazygames.com/requirements/ads/",
+  "https://docs.crazygames.com/requirements/multiplayer/",
+  "https://docs.crazygames.com/requirements/game-covers/",
+  "https://docs.crazygames.com/requirements/account-integration/",
+]
+
+[platforms.poki]
+title = "Poki"
+tier = 1
+every = "day"
+pages = [
+  "https://developers.poki.com/guide/what-we-look-for",
+  "https://developers.poki.com/guide/sdk-html5",
+  "https://developers.poki.com/guide/content-player-safety",
+  "https://developers.poki.com/guide/external-resources-policy",
+  "https://developers.poki.com/guide/release-process",
+  "https://developers.poki.com/guide/final-review",
+]
+
+[platforms.playgama]
+title = "Playgama"
+tier = 1
+every = "day"
+list = "https://wiki.playgama.com/llms.txt"
+include = ["/game-requirements"]
+
+[platforms.gamepush]
+title = "GamePush"
+tier = 1
+every = "day"
+pages = [
+  "https://docs.gamepush.com/ru/docs/platforms/",
+  "https://docs.gamepush.com/ru/tutorials/publishing-the-game-on-platforms-guide/",
+  "https://docs.gamepush.com/ru/docs/purchases/platforms-setup/",
+  "https://docs.gamepush.com/ru/docs/authorization/platforms/",
+]
+
+[platforms.y8]
+title = "Y8"
+tier = 2
+every = "day"
+pages = [
+  "https://docs.y8.com/platforms/",
+  "https://docs.y8.com/studio/media/",
+  "https://docs.y8.com/best-practices/",
+]
+
+[platforms.gamedistribution]
+title = "GameDistribution"
+tier = 2
+every = "week"
+pages = [
+  "https://static.gamedistribution.com/developer/developers-guidelines.html",
+  "https://static.gamedistribution.com/developer/design-guidelines.html",
+]
+
+[platforms.itch]
+title = "itch.io"
+tier = 2
+every = "week"
+pages = [
+  "https://itch.io/docs/creators/html5",
+  "https://itch.io/docs/creators/quality-guidelines",
+  "https://itch.io/docs/creators/faq",
+]
+
+[platforms.playdeck]
+title = "Playdeck (Telegram)"
+tier = 2
+every = "week"
+pages = [
+  "https://github.com/ton-play/playdeck-integration-guide/wiki/Game-requirements",
+  "https://github.com/ton-play/playdeck-integration-guide/wiki/Required-steps",
+  "https://github.com/ton-play/playdeck-integration-guide/wiki/Highly-recommended-steps",
+  "https://github.com/ton-play/playdeck-integration-guide/wiki/FAQ",
+]

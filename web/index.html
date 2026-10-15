@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ассистент веб-игр</title>
+<link rel="stylesheet" href="/static/chat.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side">
+    <div class="brand">
+      <span class="logo">▲</span>
+      <div><b>Ассистент веб-игр</b><small>требования площадок · проект</small></div>
+    </div>
+    <button class="new" id="newChat">+ Новый чат</button>
+    <nav class="chats" id="chats"></nav>
+    <div class="side-foot" id="indexInfo"></div>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <button class="burger" id="burger" aria-label="Чаты">☰</button>
+      <div class="title" id="chatTitle">Новый чат</div>
+      <label class="model">
+        <span>Модель</span>
+        <select id="model"></select>
+        <button id="customBtn" class="ghost" title="Свой API" hidden>⚙</button>
+      </label>
+    </header>
+    <section class="thread" id="thread">
+      <div class="hello" id="hello">
+        <h1>Что проверить перед выпуском?</h1>
+        <p>Спросите о требованиях площадок — ответ придёт с источниками и дословными цитатами.
+          О самом проекте — командой <code>/help</code>.</p>
+        <div class="tries" id="tries"></div>
+      </div>
+    </section>
+    <form class="composer" id="composer">
+      <div class="slash" id="slash" hidden></div>
+      <textarea id="input" rows="1" placeholder="Вопрос о требованиях или /help …" autocomplete="off"></textarea>
+      <button type="submit" id="sendBtn">↑</button>
+    </form>
+  </main>
+</div>
+
+<dialog id="customDlg">
+  <form method="dialog" class="dlg">
+    <h3>Свой API</h3>
+    <p class="muted">Любой OpenAI-совместимый сервис. Ключ хранится только в этом браузере и уходит
+      с каждым запросом — сервер его не сохраняет.</p>
+    <label>Base URL <input id="cuUrl" placeholder="https://api.openai.com/v1"></label>
+    <label>Модель <input id="cuModel" placeholder="gpt-5-mini"></label>
+    <label>Ключ <input id="cuKey" type="password" placeholder="sk-…"></label>
+    <menu><button value="cancel" class="ghost">Отмена</button><button value="ok" id="cuSave">Сохранить</button></menu>
+  </form>
+</dialog>
+<script src="/static/chat.js"></script>
+</body>
+</html>
