@@ -81,6 +81,8 @@ async function api(path, opts = {}) {
 // ── Список чатов ──
 async function loadChats() {
   const list = await api("/api/chats");
+  const current = list.find((c) => c.id === chatId);
+  if (current) ui.title.textContent = current.title;
   ui.chats.innerHTML = "";
   for (const c of list) {
     const item = document.createElement("div");
@@ -178,8 +180,9 @@ function onEvent(view, ev) {
     case "hits": {
       const passed = ev.hits.filter((h) => h.passed).length;
       const where = ev.platforms.length ? ` · площадки: ${ev.platforms.join(", ")}` : "";
-      const c = chip(view, `поиск: <b>${passed}</b> из ${ev.hits.length} выше порога ${ev.threshold.toFixed(2)}, ` +
-        `в ответ ${ev.chosen}${where} · ${ev.ms} мс`);
+      const c = chip(view, ev.threshold
+        ? `поиск: <b>${passed}</b> из ${ev.hits.length} выше порога ${ev.threshold.toFixed(2)}, в ответ ${ev.chosen}${where} · ${ev.ms} мс`
+        : `документация: в ответ <b>${ev.chosen}</b> лучших из ${ev.hits.length} · ${ev.ms} мс`);
       panel(view, "hits", ev.hits.map((h) =>
         `<div class="${h.passed ? "pass" : ""}"><span class="s">${h.score.toFixed(3)}</span>` +
         `${esc(KINDS[h.kind] || h.kind)} · ${esc(h.platform || h.title)} · ${esc(h.section || h.title)}</div>`).join(""), c);

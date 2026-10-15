@@ -58,6 +58,23 @@ python -m uvicorn app.main:app --port 8010
 
 Чат открывается на `http://127.0.0.1:8010/`.
 
+## Выкатка на сервер
+
+Сервер — релиз, а не рабочая копия: на нём стоит git-тег из GitHub, правок на
+месте нет. Выкатка нового шага:
+
+```bash
+cd /opt/webgame-dev-assistant
+git fetch --tags && git checkout day31
+deploy/setup.sh                              # зависимости, страницы, сверка карточек, индекс
+sudo systemctl restart webgame-assistant
+```
+
+Первый раз дополнительно: клон в `/opt/webgame-dev-assistant`, `.env` (режим 600),
+служба из `deploy/webgame-assistant.service`, блок Caddy из `deploy/Caddyfile.webgame`
+(пароль чата — basic auth Caddy, хеш через `caddy hash-password`).
+«Мой опыт» кладётся в `data/notes/` отдельно, в git его нет.
+
 ## Настройки (`.env`)
 
 | Переменная | Что задаёт | По умолчанию |
@@ -68,7 +85,7 @@ python -m uvicorn app.main:app --port 8010
 | `OLLAMA_URL` | адрес Ollama | `http://127.0.0.1:11434` |
 | `EMBED_MODEL` | модель эмбеддингов | `embeddinggemma:300m-qat-q8_0` |
 | `DEFAULT_MODEL` | модель по умолчанию в чате: `local`, `deepseek` | `deepseek` |
-| `RAG_THRESHOLD` | порог косинуса для «в базе этого нет» | `0.45` |
+| `RAG_THRESHOLD` | порог косинуса для «в базе этого нет» (подобран контрольным набором) | `0.54` |
 | `LLM_PROXY` | SOCKS-прокси для облачных моделей | — |
 | `WDA_DATA` | папка данных сервера | `data/` |
 | `WDA_REPO` | репозиторий, который видит MCP git | корень проекта |

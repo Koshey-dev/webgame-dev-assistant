@@ -23,6 +23,7 @@ BUDGET = {"ollama": 2600, "openai": 4500}   # символов фрагмент�
 MAX_FRAGMENTS = 6
 MARGIN = 0.1                 # насколько фрагмент может уступать лучшему по косинусу
 TOOL_ROUNDS = 3
+HELP_FRAGMENTS = 4
 
 ROLE = (
     "Ты ассистент разработчика HTML5-игр. Отвечаешь о требованиях игровых площадок "
@@ -49,7 +50,8 @@ HELP_ROLE = (
     "Ты ассистент разработчика, встроенный в проект webgame-dev-assistant. Отвечаешь на вопросы о самом "
     "проекте: структура, модули, как запустить, как устроено. Опирайся на фрагменты документации [n] и на "
     "данные git. Если нужно уточнить файлы, историю или незакоммиченные правки — вызови инструмент. "
-    "Отвечай по-русски, кратко, пути файлов пиши как есть."
+    "Назначение файла бери из документации, а не угадывай по имени; если в документации его нет — так и скажи. "
+    "Ссылайся на фрагменты номером [n]. Отвечай по-русски, кратко, пути файлов пиши как есть."
 )
 
 KIND = {"card": "карточка", "page": "страница", "note": "мой опыт", "doc": "документ"}
@@ -127,7 +129,8 @@ def sources(chosen, titles, text):
 
 def brief(hits):
     return [{"score": h["score"], "kind": h["kind"], "platform": h["platform"], "section": h["section"],
-             "title": h["title"], "ref": h["ref"], "passed": h["score"] >= rag.THRESHOLD} for h in hits]
+             "title": h["title"], "ref": h["ref"], "passed": h.get("passed", h["score"] >= rag.THRESHOLD)}
+            for h in hits]
 
 
 async def rewrite(provider, question, history):
@@ -196,9 +199,18 @@ async def help_answer(question, history, provider, git):
     branch = await git.call("git_branch")
     yield {"type": "mcp", "server": GIT.info["name"], "tool": "git_branch", "args": {}, "result": branch,
            "by": "код", "ms": ms(t1)}
-    hits = rag.search(question or "структура проекта", ("project",), k=8) if question else []
-    chosen = choose(hits, provider["kind"])
-    yield {"type": "hits", "query": question, "platforms": [], "threshold": rag.THRESHOLD,
+    hits = rag.search(question or "структура проекта", ("project",), k=8)
+    # Порог здесь не нужен: база «Проект» маленькая и вся про проект, а вопрос
+    # «где лежит сборщик» близок к таблице структуры всего на 0,4 — с порогом
+    # модель оставалась без документации и угадывала назначение файла по имени.
+    chosen, used = [], 0
+    for h in hits[:HELP_FRAGMENTS]:
+        if not chosen or used + len(h["text"]) <= BUDGET[provider["kind"]]:
+            chosen.append(h)
+            used += len(h["text"])
+    for h in hits:
+        h["passed"] = h in chosen
+    yield {"type": "hits", "query": question, "platforms": [], "threshold": 0,
            "hits": brief(hits), "chosen": len(chosen), "ms": ms(t1)}
     where = f"ветка {branch['branch']}" + (f" (тег {branch['tag']})" if branch.get("tag") else "")
     user = (f"Вопрос: {question or 'Что это за проект и как он устроен?'}\n\n"

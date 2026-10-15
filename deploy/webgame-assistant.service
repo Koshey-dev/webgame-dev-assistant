@@ -1,0 +1,13 @@
+[Unit]
+Description=webgame-dev-assistant: chat with platform requirements
+After=network-online.target ollama.service
+
+[Service]
+User=user
+WorkingDirectory=/opt/webgame-dev-assistant
+ExecStart=/opt/webgame-dev-assistant/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8010
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

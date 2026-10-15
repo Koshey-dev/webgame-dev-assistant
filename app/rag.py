@@ -29,7 +29,7 @@ from .crawl import load_sources
 
 MAX, MIN = 1500, 200
 BATCH = 32
-THRESHOLD = float(os.environ.get("RAG_THRESHOLD") or 0.45)
+THRESHOLD = float(os.environ.get("RAG_THRESHOLD") or 0.54)
 
 _state = {"version": None, "chunks": [], "vecs": None}
 _lock = threading.Lock()
