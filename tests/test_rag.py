@@ -36,3 +36,12 @@ def test_budget_for_local_model():
     hits = [hit("yandex", 0.7 - i / 100, 1000) for i in range(5)]
     assert len(answer.choose(hits, "ollama")) == 2
     assert len(answer.choose(hits, "openai")) == 4
+
+
+def test_code_query_and_merge():
+    history = [{"role": "user", "text": "Какой лимит размера билда на CrazyGames?"}, {"role": "assistant", "text": "250 МБ"}]
+    assert answer.code_query("а на Яндексе?", history) == "Какой лимит размера билда на CrazyGames? а на Яндексе?"
+    assert answer.code_query("Какой лимит размера билда на CrazyGames?", []) == "Какой лимит размера билда на CrazyGames?"
+    a = [{"id": "x", "score": 0.5}, {"id": "y", "score": 0.7}]
+    b = [{"id": "x", "score": 0.8}, {"id": "z", "score": 0.1}]
+    assert [(h["id"], h["score"]) for h in answer.merged(a, b)] == [("x", 0.8), ("y", 0.7), ("z", 0.1)]

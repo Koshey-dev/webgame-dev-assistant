@@ -24,6 +24,7 @@ MAX_FRAGMENTS = 6
 MARGIN = 0.1                 # насколько фрагмент может уступать лучшему по косинусу
 TOOL_ROUNDS = 3
 HELP_FRAGMENTS = 4
+FOLLOW_UP = 40               # вопрос короче — похоже на уточнение к прошлому
 
 ROLE = (
     "Ты ассистент разработчика HTML5-игр. Отвечаешь о требованиях игровых площадок "
@@ -64,6 +65,18 @@ def ms(t0):
 def history_messages(history):
     return [{"role": m["role"], "content": m["text"]} for m in history[-HISTORY:]
             if m.get("text") and m["role"] in ("user", "assistant")]
+
+
+def merged(*lists):
+    """Куски поисков по исходному вопросу и по переписанному: лучший косинус каждого.
+    Переписанный запрос помогает разговорным вопросам, но не должен топить поиск,
+    если модель переписала плохо."""
+    best = {}
+    for hits in lists:
+        for h in hits:
+            if h["id"] not in best or h["score"] > best[h["id"]]["score"]:
+                best[h["id"]] = h
+    return sorted(best.values(), key=lambda h: -h["score"])
 
 
 def page_changes():
@@ -133,7 +146,19 @@ def brief(hits):
             for h in hits]
 
 
+def code_query(question, history):
+    """Запрос без модели: короткое уточнение («а на Яндексе?») склеивается с прошлым вопросом."""
+    previous = next((m["text"] for m in reversed(history) if m["role"] == "user"), "")
+    return f"{previous} {question}" if previous and len(question) <= FOLLOW_UP else question
+
+
 async def rewrite(provider, question, history):
+    """Запрос к базе. Локальная модель его не пишет: qwen2.5:1.5b на VPS вместо
+    запроса отвечала на вопрос и вписывала выдуманное число («14 дней»), поиск
+    уходил мимо — 8 из 20 по базе против 20 из 20 у DeepSeek, — и тратила на это
+    5–30 с процессора. Для неё запрос собирает код."""
+    if provider["kind"] == "ollama":
+        return code_query(question, history)
     msgs = [{"role": "system", "content": REWRITE_ROLE}, *history_messages(history),
             {"role": "user", "content": question}]
     try:
@@ -153,7 +178,8 @@ async def ask(question, history, provider):
     yield {"type": "rewrite", "query": query, "ms": ms(t0)}
     platforms = rag.mentioned(question) or rag.mentioned(query) or None
     t1 = time.monotonic()
-    hits = rag.search(query, ("platforms", "notes"), platforms)
+    hits = merged(rag.search(question, ("platforms", "notes"), platforms),
+                  rag.search(query, ("platforms", "notes"), platforms) if query != question else [])
     changed = page_changes()
     for h in hits:
         if h["kind"] == "card" and changed.get(h["ref"], "") > h["checked"]:
