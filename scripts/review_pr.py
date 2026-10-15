@@ -62,8 +62,13 @@ def github(method, path, body=None):
 
 def upsert(repo, pr, text):
     """Свой комментарий ищется по автору-боту и метке: метку в тексте мог оставить и человек."""
-    comments = github("GET", f"/repos/{repo}/issues/{pr}/comments?per_page=100")
-    mine = next((c for c in comments if c["user"]["login"] == BOT and MARKER in c["body"]), None)
+    mine, page = None, 1
+    while mine is None:
+        comments = github("GET", f"/repos/{repo}/issues/{pr}/comments?per_page=100&page={page}")
+        if not comments:
+            break
+        mine = next((c for c in comments if c["user"]["login"] == BOT and MARKER in c["body"]), None)
+        page += 1
     if mine:
         github("PATCH", f"/repos/{repo}/issues/comments/{mine['id']}", {"body": text})
     else:

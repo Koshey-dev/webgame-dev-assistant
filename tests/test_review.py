@@ -70,15 +70,19 @@ def test_code_cut_by_functions(tmp_path):
 
 
 def test_checked_drops_foreign_files_and_bad_lines():
-    data = {"bugs": [{"file": "app/x.py", "line": 2, "severity": "high", "text": "забыт await", "refs": [1, 9]},
-                     {"file": "app/other.py", "line": 1, "severity": "high", "text": "выдумка"},
-                     {"file": "./app/x.py", "line": 999, "severity": "огромная", "text": "строки нет"}],
+    data = {"bugs": [{"file": "app/x.py", "line": 2, "severity": "high", "text": "забыт await", "case": "любой ход",
+                      "refs": [1, 9]},
+                     {"file": "app/other.py", "line": 1, "severity": "high", "text": "выдумка", "case": "x"},
+                     {"file": "./app/x.py", "line": 999, "severity": "огромная", "text": "строки нет", "case": "y"},
+                     {"file": "app/x.py", "line": 3, "severity": "medium", "text": "стоит проверить"}],
             "architecture": "не список", "recommendations": [{"file": "app/x.py", "text": ""}]}
     out, dropped = review.checked(data, {"app/x.py"}, {"app/x.py": 4}, fragments=2)
     assert dropped == 1
-    assert out["bugs"][0] == {"file": "app/x.py", "line": 2, "severity": "high", "text": "забыт await", "refs": [1]}
+    assert out["bugs"][0] == {"file": "app/x.py", "line": 2, "severity": "high", "text": "забыт await",
+                              "refs": [1], "case": "любой ход"}
     assert out["bugs"][1]["line"] is None and out["bugs"][1]["severity"] == "low"
-    assert out["architecture"] == [] and out["recommendations"] == []
+    assert len(out["bugs"]) == 2 and out["architecture"] == []
+    assert [x["text"] for x in out["recommendations"]] == ["стоит проверить"]     # бага без случая нет
 
 
 def test_safe_text_for_comment():
@@ -108,7 +112,8 @@ def test_review_endpoint_token_and_answer(monkeypatch):
         assert provider["extra"]["response_format"] == {"type": "json_object"}
         assert "<<<DIFF" in messages[1]["content"]
         return {"content": json.dumps({"bugs": [{"file": "app/x.py", "line": 2, "severity": "high",
-                                                 "text": "@all баг", "refs": []}]}), "tool_calls": []}
+                                                 "text": "@all баг", "case": "всегда", "refs": []}]}),
+                "tool_calls": []}
 
     monkeypatch.setattr(review.providers, "complete", fake_complete)
     monkeypatch.setattr(review.providers, "resolve", lambda choice: {"title": "test", "kind": "openai"})
