@@ -6,9 +6,13 @@ const ui = {
   side: $("#side"), chats: $("#chats"), thread: $("#thread"), hello: $("#hello"), tries: $("#tries"),
   input: $("#input"), form: $("#composer"), send: $("#sendBtn"), model: $("#model"), title: $("#chatTitle"),
   custom: $("#customBtn"), dlg: $("#customDlg"), slash: $("#slash"), info: $("#indexInfo"),
+  tickets: $("#tickets"), tabChats: $("#tabChats"), tabTickets: $("#tabTickets"),
+  paneChats: $("#paneChats"), paneTickets: $("#paneTickets"), ticketCount: $("#ticketCount"),
 };
 const COMMANDS = [
   ["/help ", "вопрос о проекте: MCP git + документация"],
+  ["/tickets", "тикеты игроков из CRM (MCP)"],
+  ["/ticket ", "разбор тикета: /ticket T-1001 [вопрос]"],
   ["/platforms", "площадки и что о них в базе"],
   ["/model", "какая модель отвечает"],
 ];
@@ -18,9 +22,9 @@ const TRIES = [
   "Сравни требования к рекламе у Poki и Яндекс Игр",
   "/help на какой ветке проект и где лежит сборщик страниц?",
 ];
-const KINDS = { card: "карточка", page: "страница", note: "мой опыт", doc: "документ" };
+const KINDS = { card: "карточка", page: "страница", note: "мой опыт", doc: "документ", code: "код", faq: "FAQ игры" };
 
-let state = null, chatId = null, busy = false, controller = null;
+let state = null, chatId = null, busy = false, controller = null, chatList = [];
 
 // ── Хранилище браузера: только удобства, всё в try/catch ──
 const store = {
@@ -81,6 +85,7 @@ async function api(path, opts = {}) {
 // ── Список чатов ──
 async function loadChats() {
   const list = await api("/api/chats");
+  chatList = list;
   const current = list.find((c) => c.id === chatId);
   if (current) ui.title.textContent = current.title;
   ui.chats.innerHTML = "";
@@ -97,6 +102,63 @@ async function loadChats() {
     };
     ui.chats.append(item);
   }
+}
+
+// ── Тикеты: список из CRM через MCP; у тикета свой чат, начатый командой /ticket ──
+async function loadTickets() {
+  let data;
+  try { data = await api("/api/tickets"); } catch (e) { ui.tickets.textContent = String(e.message || e); return; }
+  ui.ticketCount.textContent = data.total;
+  ui.tickets.innerHTML = "";
+  for (const t of data.tickets) {
+    const item = document.createElement("div");
+    item.className = "ticket-item";
+    item.innerHTML = `<div class="row"><b>${esc(t.id)}</b><span class="badge">${esc(t.platform)}</span>` +
+      `<span class="badge">${esc(t.game)}</span><span class="badge">${esc(t.status)}</span></div>` +
+      `<small>${esc(t.comment)}</small>`;
+    item.onclick = () => openTicket(t.id);
+    ui.tickets.append(item);
+  }
+}
+
+function openTicket(id) {
+  const chat = chatList.find((c) => c.title === `/ticket ${id}`);
+  ui.side.classList.remove("open");
+  if (chat) return openChat(chat.id);
+  startFresh();
+  send(`/ticket ${id}`);
+}
+
+function showTab(name) {
+  const tickets = name === "tickets";
+  ui.paneChats.hidden = tickets;
+  ui.paneTickets.hidden = !tickets;
+  ui.tabChats.setAttribute("aria-selected", String(!tickets));
+  ui.tabTickets.setAttribute("aria-selected", String(tickets));
+  store.set("wda.tab", name);
+}
+
+function ticketCard(view, ev) {
+  const t = ev.ticket, st = t.state || {}, d = t.device || {}, p = ev.player || {};
+  const yes = (v) => (v === true ? "да" : v === false ? "нет" : v ?? "—");
+  const rows = [
+    ["Устройство", [d.os, d.browser, d.screen].filter(Boolean).join(" · ")],
+    ["Вход", yes(st.auth)], ["Сохранение", [st.save, st.last_save].filter(Boolean).join(" · ") || "—"],
+    ["Уровень", st.level ?? "—"], ["«Без рекламы»", yes(st.no_ads)],
+    ["Звук / музыка", `${yes(st.sound)} / ${yes(st.music)}`],
+    ["Покупки в CRM", (p.purchases || []).map((x) => `${x.item} · ${x.status} · ${x.date}`).join("; ") || "нет"],
+  ];
+  const el = document.createElement("div");
+  el.className = "ticket";
+  el.innerHTML = `<div class="th"><b>${esc(t.id)}</b><span>${esc(ev.game_title)}</span>` +
+    `<span class="badge">${esc(t.platform)}</span><span class="badge">${esc(t.version || "")}</span>` +
+    `<span class="badge">${esc(t.lang || "")}</span><span class="badge">${esc(t.status)}</span></div>` +
+    `<dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>`).join("")}</dl>` +
+    ((t.errors || []).length ? `<div class="err">${t.errors.map((e) => esc(`${e.at || ""} ${e.text || ""}`)).join("<br>")}</div>` : "") +
+    `<div class="said">${esc(t.comment || "")}</div>` +
+    (ev.flags.injection.length ? `<div class="flag">⚠ похоже на инъекцию: ${esc(ev.flags.injection.join("; "))}</div>` : "") +
+    ev.contradictions.map((c) => `<div class="flag">≠ ${esc(c)}</div>`).join("");
+  view.panels.append(el);
 }
 
 function startFresh() {
@@ -188,6 +250,9 @@ function onEvent(view, ev) {
         `${esc(KINDS[h.kind] || h.kind)} · ${esc(h.platform || h.title)} · ${esc(h.section || h.title)}</div>`).join(""), c);
       break;
     }
+    case "ticket":
+      ticketCard(view, ev);
+      break;
     case "delta":
       view.text += ev.text;
       view.body.innerHTML = markdown(view.text);
@@ -209,6 +274,8 @@ function mcpShort(ev) {
   if (ev.tool === "git_status") return `${(r.changes || []).length} изменений`;
   if (ev.tool === "git_log") return `${(r.commits || []).length} коммитов`;
   if (ev.tool === "list_files") return `${r.total} файлов`;
+  if (ev.tool === "ticket_get" || ev.tool === "player_get") return r.id;
+  if (ev.tool === "ticket_list") return `${r.total} тикетов`;
   return "ok";
 }
 
@@ -231,6 +298,15 @@ function finish(view, done) {
       `<span class="badge">cos ${s.score.toFixed(2)}</span></div>` +
       (s.quote ? `<blockquote>${esc(s.quote)}</blockquote>` : "") + link;
     view.sources.append(el);
+  }
+  if (done.reply) {
+    const box = document.createElement("div");
+    box.className = "reply-box";
+    box.innerHTML = `<button type="button">Скопировать ответ игроку</button>`;
+    box.querySelector("button").onclick = (e) => {
+      navigator.clipboard?.writeText(done.reply).then(() => { e.target.textContent = "Скопировано"; }, () => {});
+    };
+    view.body.append(box);
   }
   view.body.querySelectorAll(".cite").forEach((c) => {
     c.onclick = () => document.getElementById(`src-${c.dataset.n}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -379,7 +455,8 @@ async function boot() {
   const idx = state.index;
   const cards = idx["platforms/card"] || 0, pages = idx["platforms/page"] || 0;
   ui.info.innerHTML = `Площадок ${state.platforms.length} · карточек ${cards} · кусков страниц ${pages}` +
-    (idx["notes/note"] ? ` · мой опыт ${idx["notes/note"]}` : "") + ` · проект ${idx["project/doc"] || 0}`;
+    (idx["notes/note"] ? ` · мой опыт ${idx["notes/note"]}` : "") + ` · проект ${idx["project/doc"] || 0}` +
+    ` · FAQ игр ${idx["support/faq"] || 0}`;
   for (const t of TRIES) {
     const b = document.createElement("button");
     b.type = "button";
@@ -387,7 +464,10 @@ async function boot() {
     b.onclick = () => send(t);
     ui.tries.append(b);
   }
-  await loadChats();
+  ui.tabChats.onclick = () => showTab("chats");
+  ui.tabTickets.onclick = () => showTab("tickets");
+  showTab(store.get("wda.tab", "chats"));
+  await Promise.all([loadChats(), loadTickets()]);
   if (location.hash.length > 1) openChat(location.hash.slice(1)).catch(startFresh);
 }
 boot();

@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS pages (
 );
 CREATE TABLE IF NOT EXISTS chunks (
     id TEXT PRIMARY KEY,
-    base TEXT NOT NULL,         -- platforms, notes, project или code
-    kind TEXT NOT NULL,         -- card, page, note, doc или code
+    base TEXT NOT NULL,         -- platforms, notes, project, code или support
+    kind TEXT NOT NULL,         -- card, page, note, doc, code или faq
     platform TEXT NOT NULL,     -- площадка; у баз «Проект» и «Код» пусто
     ref TEXT NOT NULL,          -- URL страницы, путь файла или файл:строка кода
     title TEXT NOT NULL,        -- страница или файл

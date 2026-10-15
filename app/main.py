@@ -1,4 +1,4 @@
-"""Веб-приложение: чат, API для него, ревью PR и MCP-сервер git.
+"""Веб-приложение: чат, API для него, ревью PR, поддержка игроков и MCP-серверы git и CRM.
 
     py -m uvicorn app.main:app --port 8010
 """
@@ -14,9 +14,10 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import answer, config, db, mcp, providers, rag, review
+from . import answer, config, db, mcp, providers, rag, review, support
 from .crawl import load_sources
 from .gittools import SERVER as GIT
+from .supporttools import SERVER as CRM
 
 app = FastAPI(title="webgame-dev-assistant", version="0.1")
 WEB = config.ROOT / "web"
@@ -35,6 +36,11 @@ def index():
 @app.post("/mcp/git", include_in_schema=False)
 async def mcp_git(request: Request):
     return await mcp.respond(GIT, request)
+
+
+@app.post("/mcp/support", include_in_schema=False)
+async def mcp_support(request: Request):
+    return await mcp.respond(CRM, request)
 
 
 @app.get("/api/state")
@@ -95,6 +101,17 @@ def delete_chat(ident: str):
     return {"ok": True}
 
 
+@app.get("/api/tickets")
+async def tickets():
+    """Тикеты поддержки для вкладки «Тикеты» — через MCP-сервер CRM, как их видит ассистент."""
+    crm = mcp.local_client(app, "/mcp/support")
+    try:
+        await crm.start()
+        return await crm.call("ticket_list", {"limit": 50})
+    except (mcp.RpcError, mcp.Failed) as e:
+        raise HTTPException(503, f"CRM недоступна: {e}")
+
+
 class Custom(BaseModel):
     base_url: str = ""
     model: str = ""
@@ -127,7 +144,17 @@ async def send(ident: str, body: SendIn, request: Request):
         try:
             provider = providers.resolve(choice, body.custom.model_dump() if body.custom else None)
             command, _, rest = text.partition(" ") if text.startswith("/") else ("", "", text)
-            if command == "/help":
+            bound = support.ticket_of(history)
+            if command == "/ticket":
+                ident, _, question = rest.strip().partition(" ")
+                if ident:
+                    stream = support.ticket_answer(ident, question.strip(), history, provider,
+                                                   mcp.local_client(app, "/mcp/support"))
+                else:
+                    stream = static("Нужен номер тикета: `/ticket T-1001`. Список — `/tickets`.", provider)
+            elif command == "/tickets":
+                stream = static(await support.tickets_table(mcp.local_client(app, "/mcp/support")), provider)
+            elif command == "/help":
                 stream = answer.help_answer(rest.strip(), history, provider,
                                             mcp.local_client(app, "/mcp/git"))
             elif command == "/platforms":
@@ -135,8 +162,10 @@ async def send(ident: str, body: SendIn, request: Request):
             elif command == "/model":
                 stream = static(answer.model_text(provider["title"]), provider)
             elif command:
-                stream = static(f"Команды: `/help <вопрос о проекте>`, `/platforms`, `/model`. "
-                                f"Команды `{command}` нет.", provider)
+                stream = static(f"Команды: `/help <вопрос о проекте>`, `/tickets`, `/ticket <id> [вопрос]`, "
+                                f"`/platforms`, `/model`. Команды `{command}` нет.", provider)
+            elif bound:                 # чат тикета: уточнение идёт по тому же тикету
+                stream = support.ticket_answer(bound, text, history, provider, mcp.local_client(app, "/mcp/support"))
             else:
                 stream = answer.ask(text, history, provider)
             async for event in stream:

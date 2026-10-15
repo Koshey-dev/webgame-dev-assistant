@@ -12,10 +12,20 @@
   <aside class="side" id="side">
     <div class="brand">
       <span class="logo">▲</span>
-      <div><b>Ассистент веб-игр</b><small>требования площадок · проект</small></div>
+      <div><b>Ассистент веб-игр</b><small>требования площадок · поддержка · проект</small></div>
     </div>
-    <button class="new" id="newChat">+ Новый чат</button>
-    <nav class="chats" id="chats"></nav>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabChats" aria-selected="true">Чаты</button>
+      <button type="button" role="tab" id="tabTickets" aria-selected="false">Тикеты <span id="ticketCount"></span></button>
+    </div>
+    <div class="pane" id="paneChats">
+      <button class="new" id="newChat">+ Новый чат</button>
+      <nav class="chats" id="chats"></nav>
+    </div>
+    <div class="pane" id="paneTickets" hidden>
+      <p class="pane-note">Баг-репорты игроков из CRM (демо) — через MCP. Нажмите, чтобы разобрать.</p>
+      <nav class="chats" id="tickets"></nav>
+    </div>
     <div class="side-foot" id="indexInfo"></div>
   </aside>
   <main class="main">
@@ -32,7 +42,7 @@
       <div class="hello" id="hello">
         <h1>Что проверить перед выпуском?</h1>
         <p>Спросите о требованиях площадок — ответ придёт с источниками и дословными цитатами.
-          О самом проекте — командой <code>/help</code>.</p>
+          Тикет игрока — вкладка «Тикеты» или <code>/ticket</code>. О самом проекте — командой <code>/help</code>.</p>
         <div class="tries" id="tries"></div>
       </div>
     </section>

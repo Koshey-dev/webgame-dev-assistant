@@ -1,9 +1,10 @@
-"""Индекс четырёх баз и поиск по нему.
+"""Индекс пяти баз и поиск по нему.
 
 - `platforms` — карточки требований (`knowledge/`) и официальные страницы (`pages`);
 - `notes` — «Мой опыт»: чек-листы пользователя (`data/notes/`, только на сервере);
 - `project` — README и `docs/` самого ассистента, для `/help` и ревью PR;
-- `code` — исходники ассистента по функциям (`codecut`), для ревью PR.
+- `code` — исходники ассистента по функциям (`codecut`), для ревью PR;
+- `support` — FAQ игр для поддержки игроков (`support/faq/`).
 
 Резка — по разделам: раздел длиннее MAX делится по абзацам, кусок короче MIN
 приклеивается к соседу (день 21 стенда: разрез по разделам рвал фразы в 0%
@@ -176,6 +177,14 @@ def collect(conn):
         title = title.group(1).strip() if title else rel
         for n, (label, body) in enumerate(cut(text, title)):
             out.append({"id": f"doc:{rel}#{n}", "base": "project", "kind": "doc", "platform": "",
+                        "ref": rel, "title": title, "section": label, "checked": "", "text": body})
+    for path in sorted(config.FAQ.glob("*.md")) if config.FAQ.exists() else []:
+        text = path.read_text(encoding="utf-8")
+        rel = path.relative_to(config.ROOT).as_posix()
+        title = re.search(r"^#\s+(.+)$", text, re.M)
+        title = title.group(1).strip() if title else path.stem
+        for n, (label, body) in enumerate(cut(text, title)):
+            out.append({"id": f"faq:{path.stem}#{n}", "base": "support", "kind": "faq", "platform": "",
                         "ref": rel, "title": title, "section": label, "checked": "", "text": body})
     out.extend(codecut.chunks())
     return out
