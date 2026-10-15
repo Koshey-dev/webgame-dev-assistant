@@ -44,6 +44,7 @@ def test_store_new_same_changed_and_failure_keeps_text():
     assert store(conn, "poki", url, "blocked", "", "HTTP 403") == "blocked"
     row = conn.execute("SELECT status, text FROM pages WHERE url = ?", (url,)).fetchone()
     assert row["status"] == "blocked" and row["text"].startswith("другой")
+    conn.close()            # без коммита: иначе запись держит базу и следующие тесты ждут блокировку
 
 
 def test_robots_question_mark_rule_does_not_block_all():

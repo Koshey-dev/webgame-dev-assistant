@@ -22,10 +22,10 @@
 | Поле | Тип | Что хранит |
 |------|-----|------------|
 | `id` | TEXT (ключ) |  |
-| `base` | TEXT | platforms, notes или project |
-| `kind` | TEXT | card, page, note или doc |
-| `platform` | TEXT | площадка; у базы «Проект» пусто |
-| `ref` | TEXT | URL страницы или путь файла |
+| `base` | TEXT | platforms, notes, project или code |
+| `kind` | TEXT | card, page, note, doc или code |
+| `platform` | TEXT | площадка; у баз «Проект» и «Код» пусто |
+| `ref` | TEXT | URL страницы, путь файла или файл:строка кода |
 | `title` | TEXT | страница или файл |
 | `section` | TEXT | путь раздела: «Технические › Размер» |
 | `text` | TEXT |  |

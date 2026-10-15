@@ -1,8 +1,9 @@
-"""Индекс трёх баз и поиск по нему.
+"""Индекс четырёх баз и поиск по нему.
 
 - `platforms` — карточки требований (`knowledge/`) и официальные страницы (`pages`);
 - `notes` — «Мой опыт»: чек-листы пользователя (`data/notes/`, только на сервере);
-- `project` — README и `docs/` самого ассистента, для `/help`.
+- `project` — README и `docs/` самого ассистента, для `/help` и ревью PR;
+- `code` — исходники ассистента по функциям (`codecut`), для ревью PR.
 
 Резка — по разделам: раздел длиннее MAX делится по абзацам, кусок короче MIN
 приклеивается к соседу (день 21 стенда: разрез по разделам рвал фразы в 0%
@@ -24,7 +25,7 @@ from pathlib import Path
 import httpx
 import numpy as np
 
-from . import cards, config, db
+from . import cards, codecut, config, db
 from .crawl import load_sources
 
 MAX, MIN = 1500, 200
@@ -176,6 +177,7 @@ def collect(conn):
         for n, (label, body) in enumerate(cut(text, title)):
             out.append({"id": f"doc:{rel}#{n}", "base": "project", "kind": "doc", "platform": "",
                         "ref": rel, "title": title, "section": label, "checked": "", "text": body})
+    out.extend(codecut.chunks())
     return out
 
 

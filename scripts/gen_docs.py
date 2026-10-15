@@ -27,9 +27,12 @@ def api_md():
             doc = (op.get("description") or op.get("summary") or "").strip().split("\n")[0]
             lines.append(f"| {method.upper()} | `{path}` | {doc} |")
     schemas = spec.get("components", {}).get("schemas", {})
-    body = {k: v for k, v in schemas.items() if k in ("SendIn", "Custom")}
-    if body:
-        lines += ["", "## Тело `POST /api/chats/{ident}/send`", ""]
+    bodies = {"POST /api/chats/{ident}/send": ("SendIn", "Custom"), "POST /api/review": ("ReviewIn", "ReviewFile")}
+    for route, names in bodies.items():
+        body = {k: schemas[k] for k in names if k in schemas}
+        if not body:
+            continue
+        lines += ["", f"## Тело `{route}`", ""]
         for name, schema in body.items():
             lines += [f"`{name}`:", ""]
             for field, prop in schema.get("properties", {}).items():

@@ -17,10 +17,10 @@ CREATE TABLE IF NOT EXISTS pages (
 );
 CREATE TABLE IF NOT EXISTS chunks (
     id TEXT PRIMARY KEY,
-    base TEXT NOT NULL,         -- platforms, notes или project
-    kind TEXT NOT NULL,         -- card, page, note или doc
-    platform TEXT NOT NULL,     -- площадка; у базы «Проект» пусто
-    ref TEXT NOT NULL,          -- URL страницы или путь файла
+    base TEXT NOT NULL,         -- platforms, notes, project или code
+    kind TEXT NOT NULL,         -- card, page, note, doc или code
+    platform TEXT NOT NULL,     -- площадка; у баз «Проект» и «Код» пусто
+    ref TEXT NOT NULL,          -- URL страницы, путь файла или файл:строка кода
     title TEXT NOT NULL,        -- страница или файл
     section TEXT NOT NULL,      -- путь раздела: «Технические › Размер»
     text TEXT NOT NULL,
