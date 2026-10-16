@@ -64,8 +64,13 @@ def grade(case, events):
 
 async def one(case, provider):
     crm = mcp.local_client(app, "/mcp/support")
-    events = [e async for e in support.ticket_answer(case["ticket"], case.get("question", ""), [], provider, crm)]
-    ok, bad = grade(case, events)
+    events = []
+    try:
+        async for e in support.ticket_answer(case["ticket"], case.get("question", ""), [], provider, crm):
+            events.append(e)
+        ok, bad = grade(case, events)
+    except (providers.ProviderError, mcp.Failed, mcp.RpcError) as e:     # провал кейса, а не всего прогона
+        ok, bad = False, [f"ошибка: {e}"[:200]]
     done = next((e for e in events if e["type"] == "done"), {})
     hits = next((e for e in events if e["type"] == "hits"), {"hits": [], "chosen": 0})
     return {"id": case["id"], "kind": case["kind"], "ticket": case["ticket"], "ok": ok, "bad": bad,

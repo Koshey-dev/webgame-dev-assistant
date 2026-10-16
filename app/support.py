@@ -125,13 +125,23 @@ def contradictions(ticket, player):
 # ── Ответ модели ─────────────────────────────────────────────────────────
 
 def parse(text):
+    """Ответ модели. Объектов JSON может прийти несколько подряд — DeepSeek на VPS однажды
+    разбил ответ на два, — поля всех собираются в один."""
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
-    try:
-        data = json.loads(text)
-    except ValueError as e:
-        raise providers.ProviderError(f"модель ответила не JSON: {text[:200]!r}") from e
-    if not isinstance(data, dict):
-        raise providers.ProviderError("модель ответила не объектом JSON")
+    decoder, pos, data = json.JSONDecoder(), 0, {}
+    while pos < len(text):
+        try:
+            part, pos = decoder.raw_decode(text, pos)
+        except ValueError as e:
+            if data:            # за объектом — хвост не JSON: разобранное уже есть
+                break
+            raise providers.ProviderError(f"модель ответила не JSON: {text[:200]!r}") from e
+        if isinstance(part, dict):
+            data.update(part)
+        while pos < len(text) and text[pos] in " \t\r\n,":
+            pos += 1
+    if not data:
+        raise providers.ProviderError("модель ответила пустым JSON")
     lists = {k: [str(x).strip() for x in data.get(k) or [] if str(x).strip()] if isinstance(data.get(k), list)
              else [] for k in ("contradictions", "steps", "need")}
     return {"diagnosis": str(data.get("diagnosis") or "").strip(), "reply": str(data.get("reply") or "").strip(),
