@@ -1,4 +1,4 @@
-"""Веб-приложение: чат, API для него, ревью PR, поддержка игроков и MCP-серверы git и CRM.
+"""Веб-приложение: чат, API для него, ревью PR, поддержка игроков, работа с файлами и MCP-серверы.
 
     py -m uvicorn app.main:app --port 8010
 """
@@ -14,8 +14,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import answer, config, db, mcp, providers, rag, review, support
+from . import answer, config, db, files, mcp, providers, rag, review, support
 from .crawl import load_sources
+from .filetools import SERVER as FILES
 from .gittools import SERVER as GIT
 from .supporttools import SERVER as CRM
 
@@ -41,6 +42,11 @@ async def mcp_git(request: Request):
 @app.post("/mcp/support", include_in_schema=False)
 async def mcp_support(request: Request):
     return await mcp.respond(CRM, request)
+
+
+@app.post("/mcp/files", include_in_schema=False)
+async def mcp_files(request: Request):
+    return await mcp.respond(FILES, request)
 
 
 @app.get("/api/state")
@@ -154,6 +160,9 @@ async def send(ident: str, body: SendIn, request: Request):
                     stream = static("Нужен номер тикета: `/ticket T-1001`. Список — `/tickets`.", provider)
             elif command == "/tickets":
                 stream = static(await support.tickets_table(mcp.local_client(app, "/mcp/support")), provider)
+            elif command == "/files":
+                stream = (files.task(rest.strip(), provider, mcp.local_client(app, "/mcp/files")) if rest.strip()
+                          else static(files.about(), provider))
             elif command == "/help":
                 stream = answer.help_answer(rest.strip(), history, provider,
                                             mcp.local_client(app, "/mcp/git"))
@@ -162,8 +171,8 @@ async def send(ident: str, body: SendIn, request: Request):
             elif command == "/model":
                 stream = static(answer.model_text(provider["title"]), provider)
             elif command:
-                stream = static(f"Команды: `/help <вопрос о проекте>`, `/tickets`, `/ticket <id> [вопрос]`, "
-                                f"`/platforms`, `/model`. Команды `{command}` нет.", provider)
+                stream = static(f"Команды: `/help <вопрос о проекте>`, `/files <цель>`, `/tickets`, "
+                                f"`/ticket <id> [вопрос]`, `/platforms`, `/model`. Команды `{command}` нет.", provider)
             elif bound:                 # чат тикета: уточнение идёт по тому же тикету
                 stream = support.ticket_answer(bound, text, history, provider, mcp.local_client(app, "/mcp/support"))
             else:

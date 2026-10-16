@@ -40,6 +40,8 @@ def checked(tool, args):
             raise ValueError(f"{name} — не целое число")
         if kind == "string" and not isinstance(value, str):
             raise ValueError(f"{name} — не строка")
+        if kind == "boolean" and not isinstance(value, bool):
+            raise ValueError(f"{name} — не true/false")
         low, high = props[name].get("minimum"), props[name].get("maximum")
         if kind == "integer" and ((low is not None and value < low) or (high is not None and value > high)):
             raise ValueError(f"{name} вне [{low}, {high}]")
@@ -61,9 +63,9 @@ class Server:
         self.sessions = set()
 
     def listed(self):
-        return [{k: v for k, v in tool.items() if k != "run"} for tool in self.tools]
+        return [{k: v for k, v in tool.items() if k not in ("run", "session")} for tool in self.tools]
 
-    async def call(self, params):
+    async def call(self, params, session=""):
         tool = self.by_name.get(params.get("name"))
         if tool is None:
             raise RpcError(-32602, f"инструмента {params.get('name')!r} нет")
@@ -72,7 +74,8 @@ class Server:
         except ValueError as bad:
             raise RpcError(-32602, f"{tool['name']}: {bad}") from bad
         try:
-            data = tool["run"](args)
+            # Инструменту с пометкой session нужен id сессии: черновик правок у каждой свой.
+            data = tool["run"](args, session) if tool.get("session") else tool["run"](args)
             if inspect.isawaitable(data):
                 data = await data
         except Failed as failed:
@@ -105,7 +108,7 @@ class Server:
             elif method == "tools/list":
                 result = {"tools": self.listed()}
             elif method == "tools/call":
-                result = await self.call(params)
+                result = await self.call(params, session)
             else:
                 raise RpcError(-32601, f"метода {method} нет")
         except RpcError as bad:
