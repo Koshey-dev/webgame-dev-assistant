@@ -1,4 +1,4 @@
-"""Веб-приложение: чат, API для него, ревью PR, поддержка игроков, работа с файлами и MCP-серверы.
+"""Веб-приложение: чат, API для него, ревью PR, поддержка игроков, работа с файлами, выпуск игр и MCP-серверы.
 
     py -m uvicorn app.main:app --port 8010
 """
@@ -18,6 +18,7 @@ from . import answer, config, db, files, mcp, providers, rag, review, support
 from .crawl import load_sources
 from .filetools import SERVER as FILES
 from .gittools import SERVER as GIT
+from .release import SERVER as RELEASE
 from .supporttools import SERVER as CRM
 
 app = FastAPI(title="webgame-dev-assistant", version="0.1")
@@ -47,6 +48,11 @@ async def mcp_support(request: Request):
 @app.post("/mcp/files", include_in_schema=False)
 async def mcp_files(request: Request):
     return await mcp.respond(FILES, request)
+
+
+@app.post("/mcp/release", include_in_schema=False)
+async def mcp_release(request: Request):
+    return await mcp.respond(RELEASE, request)
 
 
 @app.get("/api/state")

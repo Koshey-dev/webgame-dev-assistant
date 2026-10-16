@@ -14,7 +14,7 @@ import time
 
 from . import config, providers
 from .answer import as_function, ms
-from .filetools import SERVER as FILES
+from .filetools import SERVER as FILES, project
 
 ROUNDS = 20                  # кругов модели с вызовами
 CALLS = 60                   # вызовов инструментов на задачу: проверка двух правил по 9 играм — около 45
@@ -131,12 +131,13 @@ async def task(goal, provider, files):
     root = await files.call("list_files", {})
     yield {"type": "mcp", "server": FILES.info["name"], "tool": "list_files", "args": {}, "result": root,
            "by": "код", "ms": ms(t1)}
-    where = config.FILES_ROOT.name + (f" @ {config.FILES_REF}" if config.FILES_REF else " (рабочая копия)")
+    where_root, ref, readonly = project()
+    where = where_root.name + (f" @ {ref}" if ref else " (рабочая копия)")
     top = ", ".join(f"{k}/ ({v})" for k, v in root["folders"].items())
     loose = ", ".join(f for f in root["files"] if "/" not in f)
     user = (f"Цель: {goal}\n\nПроект: {where}; файлов под git {root['total']}.\n"
             f"Папки: {top or '—'}\nФайлы в корне: {loose or '—'}"
-            + (f"\nТолько чтение: {', '.join(config.FILES_READONLY)}" if config.FILES_READONLY else "")
+            + (f"\nТолько чтение: {', '.join(readonly)}" if readonly else "")
             + ("" if writes else "\nРежим: только чтение — цель не просит правок; что стоит поменять, "
                                  "назови в итоге."))
     msgs = [{"role": "system", "content": ROLE}, {"role": "user", "content": user}]

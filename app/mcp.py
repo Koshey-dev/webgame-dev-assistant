@@ -156,6 +156,26 @@ class Client:
         return result.get("structuredContent") or json.loads(result["content"][0]["text"])
 
 
+class Direct:
+    """Клиент к серверу в том же ходе, без HTTP: выпуск (день 35) зовёт сервер файлов
+    со своим проектом в `filetools.PROJECT`, а он живёт только внутри своей задачи."""
+
+    def __init__(self, server):
+        self.server, self.session = server, uuid.uuid4().hex
+
+    async def start(self):
+        return {"serverInfo": self.server.info}
+
+    async def tools(self):
+        return self.server.listed()
+
+    async def call(self, name, args=None):
+        result = await self.server.call({"name": name, "arguments": args or {}}, self.session)
+        if result.get("isError"):
+            raise Failed(result["content"][0]["text"])
+        return result["structuredContent"]
+
+
 def parse(r):
     """Ответ JSON или поток SSE. Из потока — событие с result или error, а не первое:
     до ответа сервер вправе прислать свои уведомления (урок DeepWiki, день 20)."""

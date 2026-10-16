@@ -20,8 +20,8 @@ def api_md():
     lines = ["# API", "",
              "Сгенерировано `scripts/gen_docs.py` из OpenAPI приложения — руками не править.", "",
              "Кроме маршрутов ниже: `GET /` — чат, `POST /mcp/git` — MCP-сервер git, `POST /mcp/support` — "
-             "MCP-сервер CRM поддержки, `POST /mcp/files` — MCP-сервер файлов проекта (все — JSON-RPC 2.0 "
-             "по Streamable HTTP).", "",
+             "MCP-сервер CRM поддержки, `POST /mcp/files` — MCP-сервер файлов проекта, `POST /mcp/release` — "
+             "MCP-сервер выпуска игры на площадку (все — JSON-RPC 2.0 по Streamable HTTP).", "",
              "| Метод | Путь | Что делает |", "|-------|------|------------|"]
     for path, ops in spec["paths"].items():
         for method, op in ops.items():
