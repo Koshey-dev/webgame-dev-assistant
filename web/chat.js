@@ -11,6 +11,7 @@ const ui = {
 };
 const COMMANDS = [
   ["/help ", "вопрос о проекте: MCP git + документация"],
+  ["/files ", "задача по файлам проекта: найти, проверить, поправить (diff)"],
   ["/tickets", "тикеты игроков из CRM (MCP)"],
   ["/ticket ", "разбор тикета: /ticket T-1001 [вопрос]"],
   ["/platforms", "площадки и что о них в базе"],
@@ -274,6 +275,12 @@ function mcpShort(ev) {
   if (ev.tool === "git_status") return `${(r.changes || []).length} изменений`;
   if (ev.tool === "git_log") return `${(r.commits || []).length} коммитов`;
   if (ev.tool === "list_files") return `${r.total} файлов`;
+  if (ev.tool === "search") return `${r.total} совпадений в ${Object.keys(r.files || {}).length} файлах`;
+  if (ev.tool === "read_file") return `${r.path}:${r.from}–${r.to}`;
+  if (ev.tool === "compare") return Array.isArray(r.differs) ? `расходятся ${r.differs.length}` : (r.same ? "совпадают" : "есть разница");
+  if (ev.tool === "requirements") return `${(r.cards || []).length} карточек`;
+  if (ev.tool === "edit_file" || ev.tool === "write_file") return `${r.path} в черновик`;
+  if (ev.tool === "draft_diff") return `${(r.files || []).length} файлов в черновике`;
   if (ev.tool === "ticket_get" || ev.tool === "player_get") return r.id;
   if (ev.tool === "ticket_list") return `${r.total} тикетов`;
   return "ok";
@@ -308,6 +315,7 @@ function finish(view, done) {
     };
     view.body.append(box);
   }
+  if (done.diff) view.body.append(diffBox(done.diff));
   view.body.querySelectorAll(".cite").forEach((c) => {
     c.onclick = () => document.getElementById(`src-${c.dataset.n}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   });
@@ -315,7 +323,32 @@ function finish(view, done) {
   if (done.first_ms) parts.push(`первое слово ${(done.first_ms / 1000).toFixed(1)} с`);
   if (done.total_ms) parts.push(`всего ${(done.total_ms / 1000).toFixed(1)} с`);
   if (done.refusal) parts.push("ответ кода: ниже порога");
+  if (done.calls) parts.push(`вызовов MCP ${done.calls}`);
   view.meta.textContent = parts.join(" · ");
+}
+
+// Diff черновика: строки раскрашены, файл .patch собирается в браузере — на сервере его нет.
+function diffBox(diff) {
+  const box = document.createElement("div");
+  box.className = "diff-box";
+  const lines = diff.replace(/\n$/, "").split("\n").map((l) => {
+    const cls = /^(\+\+\+|---)/.test(l) ? "f" : l.startsWith("@@") ? "h" : l.startsWith("+") ? "a"
+      : l.startsWith("-") ? "d" : "";
+    return `<span class="${cls}">${esc(l)}</span>`;
+  });
+  box.innerHTML = `<div class="diff-bar"><b>diff черновика</b><button type="button" data-a="save">Скачать .patch</button>` +
+    `<button type="button" data-a="copy">Скопировать</button></div><pre>${lines.join("\n")}</pre>`;
+  box.querySelector('[data-a="save"]').onclick = () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([diff], { type: "text/x-diff" }));
+    a.download = `files-${chatId || "task"}.patch`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  box.querySelector('[data-a="copy"]').onclick = (e) => {
+    navigator.clipboard?.writeText(diff).then(() => { e.target.textContent = "Скопировано"; }, () => {});
+  };
+  return box;
 }
 
 function replay(m) {

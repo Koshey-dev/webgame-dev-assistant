@@ -126,6 +126,18 @@ a { color: var(--link); }
 .reply-box button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px;
   cursor: pointer; font-size: 13px; }
 .reply-box button:hover { border-color: var(--accent); }
+.diff-box { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.diff-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--panel-2); font-size: 13px; }
+.diff-bar b { margin-right: auto; }
+.diff-bar button { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px;
+  cursor: pointer; color: var(--text); }
+.diff-bar button:hover { border-color: var(--accent); }
+.diff-box pre { margin: 0; padding: 10px 12px; max-height: 420px; overflow: auto; font: 12px/1.5 var(--mono);
+  background: var(--panel); }
+.diff-box .a { color: var(--ok); }
+.diff-box .d { color: var(--warn); }
+.diff-box .h { color: var(--link); }
+.diff-box .f { color: var(--muted); }
 
 /* Источники */
 .sources { display: grid; gap: 8px; margin-top: 12px; }

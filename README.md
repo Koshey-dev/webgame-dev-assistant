@@ -11,6 +11,8 @@ GameDistribution, itch.io, Playdeck), с источниками и дослов�
 День 32: AI-ревью PR — GitHub Action отдаёт diff серверу ассистента, ответ
 приходит комментарием в PR. День 33: поддержка игроков — баг-репорт из игры
 становится тикетом в CRM, ассистент разбирает его по FAQ игры через MCP.
+День 34: работа с файлами — по цели словами ассистент сам ищет, читает,
+сравнивает файлы проекта и готовит правки, итог — diff.
 
 ## Что умеет
 
@@ -33,6 +35,11 @@ GameDistribution, itch.io, Playdeck), с источниками и дослов�
   площадки, расхождения слов игрока с данными и черновик ответа игроку на его
   языке. Текст игрока — недоверенные данные: инъекции помечаются, ссылки не из
   базы вырезаются. `/tickets` — список тикетов.
+- **`/files <цель>`** — задача по файлам проекта: найти, где используется
+  компонент или API, проверить правила, обновить документацию по коду, составить
+  отчёт. Что открыть и где искать, модель решает сама через MCP-сервер файлов;
+  правки идут в черновик, итог — diff с кнопкой «Скачать .patch», на диск
+  ничего не пишется. Секреты, пути вне проекта и удаление закрыты кодом.
 - **`/platforms`** — какие площадки в базе, сколько карточек и страниц, когда
   сверяли. **`/model`** — какая модель отвечает.
 - **Выбор модели:** локальная в Ollama, DeepSeek или «свой API» — любой
@@ -80,7 +87,7 @@ python -m uvicorn app.main:app --port 8010
 
 ```bash
 cd /opt/webgame-dev-assistant
-git fetch --tags && git checkout day32
+git fetch --tags && git checkout refs/tags/day34   # имя ветки шага совпадает с тегом — тег полным именем
 deploy/setup.sh                              # зависимости, страницы, сверка карточек, индекс
 sudo systemctl restart webgame-assistant
 ```
@@ -109,6 +116,22 @@ sudo systemctl restart webgame-assistant
 Контрольный набор — `eval/review.toml`: подложенные ошибки в настоящем коде
 проекта и чистые правки, прогон `py scripts/eval_review.py`.
 
+## Работа с файлами
+
+`/files` в чате работает с репозиторием из `FILES_ROOT` (на сервере — свой).
+С другим проектом — локально, тем же ходом из командной строки:
+
+```bash
+py scripts/files_task.py "где и как игры показывают рекламу" \
+    --root E:/GameDev/1_Projects/GamePushGames --readonly "games/*/gamepush/*"
+py scripts/files_task.py "допиши в .env.example переменные, которые читает код" --ref refs/tags/day33
+```
+
+Скрипт печатает вызовы инструментов и итог, diff кладёт в `data/patches/*.patch`,
+рядом — след хода в JSON. Применить: `git apply --check <файл>.patch`, затем
+`git apply`. Контрольный набор — `eval/files.toml` у тега `day33`, прогон
+`py scripts/eval_files.py deepseek`.
+
 ## Настройки (`.env`)
 
 | Переменная | Что задаёт | По умолчанию |
@@ -126,19 +149,25 @@ sudo systemctl restart webgame-assistant
 | `LLM_PROXY` | SOCKS-прокси для облачных моделей | — |
 | `WDA_DATA` | папка данных сервера | `data/` |
 | `WDA_REPO` | репозиторий, который видит MCP git | корень проекта |
+| `FILES_ROOT` | проект для `/files` — любой git-репозиторий | `WDA_REPO` |
+| `FILES_REF` | читать тег или коммит вместо рабочей копии | — (рабочая копия) |
+| `FILES_READONLY` | шаблоны путей только для чтения, через запятую | `knowledge/*` |
 
 ## Структура
 
 | Путь | Что это |
 |------|---------|
-| `app/main.py` | FastAPI: чат, API чатов, MCP-сервер git на `/mcp/git` |
+| `app/main.py` | FastAPI: чат, API чатов, ревью PR, MCP-серверы `/mcp/git`, `/mcp/support`, `/mcp/files` |
 | `app/answer.py` | ход ассистента: переписать запрос, поиск, порог, ответ модели, источники; `/help` с MCP |
 | `app/review.py` | ревью PR: разбор diff, сверка карточек, контекст, ответ модели JSON, комментарий |
 | `app/codecut.py` | база «Код»: исходники кусками по функциям и классам |
 | `app/support.py` | тикет поддержки: недоверенный текст, расхождения, поиск по FAQ, ответ модели, проверка черновика |
 | `app/supporttools.py` | MCP-сервер CRM: `ticket_list`, `ticket_get`, `player_get` |
+| `app/files.py` | `/files`: задача по цели, круги вызовов модели, diff черновика, проверка ссылок |
+| `app/filetools.py` | MCP-сервер файлов: `list_files`, `search`, `read_file`, `compare`, `requirements`, `edit_file`, `write_file`, `draft_diff` |
 | `app/rag.py` | резка по разделам, эмбеддинги, индекс, поиск |
 | `app/crawl.py` | сбор официальных страниц из `sources.toml` |
+| `app/robots.py` | разбор robots.txt по RFC 9309 (свой, вместо `urllib.robotparser`) |
 | `app/htmltext.py` | основной текст страницы из HTML в markdown |
 | `app/cards.py` | разбор карточек и сверка цитат со страницами |
 | `app/providers.py` | модели: Ollama, DeepSeek, свой API |
@@ -153,9 +182,10 @@ sudo systemctl restart webgame-assistant
 | `docs/` | архитектура, API, схема данных |
 | `scripts/gen_docs.py` | генерация `docs/api.md` и `docs/data.md` из кода |
 | `scripts/review_pr.py` | клиент ревью для GitHub Action: diff → сервер → комментарий в PR |
-| `scripts/eval.py`, `scripts/eval_review.py`, `scripts/eval_support.py` | прогон контрольных наборов чата, ревью и поддержки |
+| `scripts/files_task.py` | задача `/files` из командной строки: итог, `.patch` и след хода |
+| `scripts/eval.py`, `scripts/eval_review.py`, `scripts/eval_support.py`, `scripts/eval_files.py` | прогон контрольных наборов чата, ревью, поддержки и файлов |
 | `.github/workflows/review.yml` | AI-ревью на каждый PR |
-| `eval/` | контрольные наборы: вопросы чата, кейсы ревью, тикеты поддержки |
+| `eval/` | контрольные наборы: вопросы чата, кейсы ревью, тикеты поддержки, задачи по файлам |
 | `deploy/` | служба systemd и блок Caddy для сервера |
 | `tests/` | pytest |
 
