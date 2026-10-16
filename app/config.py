@@ -48,5 +48,9 @@ FILES_ROOT = Path(os.environ.get("FILES_ROOT") or REPO)
 FILES_REF = os.environ.get("FILES_REF") or ""
 FILES_READONLY = [p.strip() for p in (os.environ.get("FILES_READONLY") or "knowledge/*").split(",") if p.strip()]
 
+# Выпуск игры на площадку (MCP release): репозиторий игр. Сборка идёт из закоммиченного
+# HEAD во временной папке в DATA/release — в рабочую копию игр выпуск не пишет.
+GAMES_ROOT = Path(os.environ["GAMES_ROOT"]) if os.environ.get("GAMES_ROOT") else None
+
 USER_AGENT = ("webgame-dev-assistant/0.1 "
               "(+https://github.com/Koshey-dev/webgame-dev-assistant)")

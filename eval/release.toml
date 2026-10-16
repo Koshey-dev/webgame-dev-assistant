@@ -1,0 +1,76 @@
+# Контрольный набор выпуска (день 35): «Шахта» под Playgama из репозитория игр у коммита.
+#
+# clean — коммит как есть; planted — тот же коммит и шесть подложенных нарушений одним
+# коммитом сверху. Нарушение ищется по словам пункта официального чек-листа, а не по
+# номеру: Playgama вправе перенумеровать. Засчитано — пункт со статусом fail. fail на
+# любом другом пункте — ложная тревога, кроме disputed: там нарушение спорное, но
+# настоящее — поле на ПК не ограничено 2:1 (у «Косынки» сделано, у «Шахты» в «Не сделано»
+# docs/mine-game.md) и кнопка ролика «Бесплатно» не говорит, что будет реклама.
+#
+#     py scripts/eval_release.py            # 3 круга
+#     py scripts/eval_release.py --rounds 1
+
+game = "deep-mine"
+platform = "playgama"
+commit = "ea42c80"
+disputed = ["2:1 ratio", "Rewarded ads are opt-in"]
+
+[[case]]
+id = "clean"
+
+[[case]]
+id = "planted"
+
+[[case.plant]]
+item = "never through `localStorage`"
+why = "копия прогресса в localStorage включена и на Playgama"
+file = "games/deep-mine/guardado.js"
+old = "const conCopia = () => almacenLocal() && !soloNube();"
+new = "const conCopia = () => true;"
+
+[[case.plant]]
+item = "Load no external resources"
+why = "шрифт с Google Fonts"
+file = "games/deep-mine/index.html"
+old = "<meta charset=\"utf-8\">\n"
+new = "<meta charset=\"utf-8\">\n<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Nunito:wght@800&display=swap\">\n"
+
+[[case.plant]]
+item = "external links to social networks"
+why = "ссылка на группу VK в игре"
+file = "games/deep-mine/index.html"
+old = "</body>"
+new = "<a id=\"grupo\" href=\"https://vk.com/deepmine\" target=\"_blank\">VK</a>\n</body>"
+
+[[case.plant]]
+item = "No external analytics"
+why = "Google Analytics 4 (gtag) в index.html"
+file = "games/deep-mine/index.html"
+old = "<meta charset=\"utf-8\">\n"
+new = "<meta charset=\"utf-8\">\n<script async src=\"https://www.googletagmanager.com/gtag/js?id=G-TEST12345\"></script>\n<script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-TEST12345');</script>\n"
+
+[[case.plant]]
+item = "sendMessage('game_ready')"
+why = "game_ready сразу после инициализации Bridge, до загрузки игры"
+file = "shared/playgama/plataforma.js"
+old = "      b = listo ? window.bridge : null;\n"
+new = "      b = listo ? window.bridge : null;\n      try { b && b.platform.sendMessage('game_ready'); } catch (e) {}\n"
+
+[[case.plant]]
+item = "Grant the reward only after"
+why = "награда за открытие ролика, а не за досмотр"
+file = "shared/playgama/anuncios.js"
+old = "(estado) => { if (estado === 'rewarded') premio = true; }"
+new = "(estado) => { if (estado === 'opened') premio = true; }"
+
+# Имя файла кириллицей не пропускает уже pack.py игр: выпуск должен встать на сборке,
+# до чек-листа и модели.
+[[case]]
+id = "badname"
+stop = "сборка"
+
+[[case.plant]]
+item = "Latin characters only"
+why = "файл с кириллицей в имени"
+file = "games/deep-mine/kit/заметка.txt"
+new = "Заметка про кирки.\n"

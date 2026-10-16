@@ -1,0 +1,34 @@
+{
+  "env": {
+    "MCP_TOOL_TIMEOUT": "600000"
+  },
+  "permissions": {
+    "allow": [
+      "mcp__webgame-release__prepare",
+      "mcp__playgama__get_game_checklist",
+      "mcp__playgama__list_applications",
+      "mcp__playgama__get_application",
+      "mcp__playgama__create_application",
+      "mcp__playgama__update_application_form",
+      "mcp__playgama__start_archive_upload",
+      "mcp__playgama__confirm_archive_upload",
+      "mcp__playgama__get_archive_status",
+      "mcp__playgama__start_cover_upload",
+      "mcp__playgama__confirm_cover_upload",
+      "mcp__playgama__get_archive_qa_tool_link",
+      "mcp__playgama__list_in_app_products",
+      "mcp__playgama__list_leaderboards",
+      "mcp__playgama__get_launch_steps",
+      "mcp__playgama__get_submission_state",
+      "Bash(curl -sS -T:*)"
+    ],
+    "deny": [
+      "mcp__playgama__publish_sandbox",
+      "mcp__playgama__start_sandbox_traffic",
+      "mcp__playgama__replace_in_app_products",
+      "mcp__playgama__create_leaderboard",
+      "mcp__playgama__update_leaderboard",
+      "mcp__playgama__apply_referral_code"
+    ]
+  }
+}

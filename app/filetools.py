@@ -17,6 +17,7 @@ git-репозиторий; `FILES_REF` — читать тег или комм�
 """
 
 import asyncio
+import contextvars
 import difflib
 import fnmatch
 import re
@@ -39,11 +40,18 @@ SECRET = re.compile(r"(^|/)(\.env(?!\.example$)(\..+)?|.+\.(pem|key|p12|pfx|keys
                     r"|secrets?(\.\w+)?|credentials(\.\w+)?)$", re.I)
 
 DRAFTS = {}            # сессия MCP → {путь: новый текст}
+# Проект хода: (корень, тег, только чтение). Пусто — из настроек; выпуск (день 35) на время
+# своего хода подставляет распакованный архив или репозиторий игр у коммита.
+PROJECT = contextvars.ContextVar("files_project", default=None)
+
+
+def project():
+    return PROJECT.get() or (config.FILES_ROOT, config.FILES_REF, config.FILES_READONLY)
 
 
 def git(*args, raw=False):
     try:
-        done = subprocess.run(["git", "-C", str(config.FILES_ROOT), *args], capture_output=True, timeout=30)
+        done = subprocess.run(["git", "-C", str(project()[0]), *args], capture_output=True, timeout=30)
     except (OSError, subprocess.TimeoutExpired) as e:
         raise Failed(f"git не запустился: {e}") from e
     err = done.stderr.decode("utf-8", "replace").strip()
@@ -69,8 +77,9 @@ def clean_path(raw):
 
 
 def tracked():
-    if config.FILES_REF:
-        names = git("ls-tree", "-r", "--name-only", "-z", config.FILES_REF)
+    ref = project()[1]
+    if ref:
+        names = git("ls-tree", "-r", "--name-only", "-z", ref)
     else:
         names = git("ls-files", "-z")
     return [n for n in names.split("\0") if n and not SECRET.search(n)]
@@ -81,10 +90,11 @@ def under(path, prefix):
 
 
 def base_bytes(path):
-    if config.FILES_REF:
-        return git("show", f"{config.FILES_REF}:{path}", raw=True)
+    root, ref, _ = project()
+    if ref:
+        return git("show", f"{ref}:{path}", raw=True)
     try:
-        return (config.FILES_ROOT / path).read_bytes()
+        return (root / path).read_bytes()
     except OSError as e:                     # в индексе есть, а в рабочей копии удалён
         raise Failed(f"{path}: не читается из рабочей копии ({e.strerror})") from e
 
@@ -162,10 +172,10 @@ def search(args, session):
                               re.I if args.get("ignore_case") else 0)
     except re.error as e:
         raise Failed(f"регулярное выражение не разобрано: {e}") from e
-    mine = DRAFTS.get(session, {})
+    mine, ref = DRAFTS.get(session, {}), project()[1]
     out = git("grep", "-n", "-I", "-z", "--no-color", *flags, kind, "-e", pattern,
-              *([config.FILES_REF] if config.FILES_REF else []), "--", *([prefix] if prefix else []))
-    lead = f"{config.FILES_REF}:" if config.FILES_REF else ""
+              *([ref] if ref else []), "--", *([prefix] if prefix else []))
+    lead = f"{ref}:" if ref else ""
     matches = []
     for row in out.splitlines():
         parts = row.split("\0", 2)
@@ -254,7 +264,7 @@ async def requirements(args, session):
 def writable(path, mine):
     if not path:
         raise Failed("нужен путь файла")
-    for pattern in config.FILES_READONLY:
+    for pattern in project()[2]:
         if fnmatch.fnmatch(path, pattern):
             raise Failed(f"{path}: только для чтения в этом проекте ({pattern})")
     if path not in mine and len(mine) >= DRAFT_FILES:
