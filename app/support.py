@@ -253,7 +253,7 @@ async def ticket_answer(ident, question, history, provider, crm):
         others, event = await call(crm, "ticket_list", {"player": raw["player"]})
         yield event
     ticket = cleaned(raw)
-    flags = {"injection": suspicious(raw), "cut": len(raw.get("comment", "")) > LIMIT["comment"]}
+    flags = {"injection": suspicious(raw), "cut": len(str(raw["comment"])) > LIMIT["comment"]}
     found = contradictions(ticket, player)
     mine = {k: v for k, v in player.items() if k in ("id", "platform", "since")}
     mine["purchases"] = [p for p in player.get("purchases", []) if p.get("game") == ticket["game"]]
