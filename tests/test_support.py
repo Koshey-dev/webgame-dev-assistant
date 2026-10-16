@@ -118,6 +118,7 @@ def test_ticket_answer_flow(crm, monkeypatch):
     done = events[-1]
     assert "evil" not in done["reply"] and done["warnings"]
     assert "### Ответ игроку (ru)" in done["text"] and "state.auth = false" in done["text"]
+    assert "://evil" not in done["text"] and "https[:]//evil.example/x" in done["text"]   # не кликается
 
 
 def test_reply_language_is_checked_and_retried(crm, monkeypatch):

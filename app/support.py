@@ -158,9 +158,19 @@ def in_language(text, lang):
     return share >= 0.5 if lang == "ru" else share <= 0.2
 
 
+def known_urls(chosen):
+    return {u.rstrip(".,;") for h in chosen for u in URL.findall(h["text"] + " " + h["ref"])}
+
+
+def defang(text, known):
+    """Ссылки не из базы — некликабельными (http[:]//): их мог подсунуть игрок, а чат делает ссылки из URL."""
+    return URL.sub(lambda m: m.group(0) if m.group(0).rstrip(".,;") in known
+                   else m.group(0).replace("://", "[:]//", 1), text)
+
+
 def checked_reply(reply, chosen):
     """Черновик игроку: ссылки только из фрагментов, внутренние детали и обещания — в предупреждения."""
-    known = {u.rstrip(".,;") for h in chosen for u in URL.findall(h["text"] + " " + h["ref"])}
+    known = known_urls(chosen)
     removed = []
 
     def keep(m):
@@ -183,7 +193,7 @@ def checked_reply(reply, chosen):
     return reply, warnings
 
 
-def render(out, code_found, warnings, lang):
+def render(out, code_found, warnings, lang, known):
     lines = ["### Разбор для разработчика", "", out["diagnosis"] or "Модель разбора не дала."]
     found = list(dict.fromkeys([*code_found, *out["contradictions"]]))
     for title, items in (("Расхождения со словами игрока", found), ("Что сделать", out["steps"]),
@@ -193,7 +203,7 @@ def render(out, code_found, warnings, lang):
     lines += ["", f"### Ответ игроку ({lang})", "", out["reply"] or "—"]
     if warnings:
         lines += ["", "**Проверка черновика кодом**", *[f"- {w}" for w in warnings]]
-    return "\n".join(lines)
+    return defang("\n".join(lines), known)
 
 
 # ── Ход ──────────────────────────────────────────────────────────────────
@@ -306,7 +316,7 @@ async def ticket_answer(ident, question, history, provider, crm):
     out["reply"] = reply
     if flags["injection"]:
         warnings.insert(0, "в баг-репорте текст, похожий на инъекцию: " + "; ".join(flags["injection"]))
-    text = render(out, found, warnings, lang)
+    text = render(out, found, warnings, lang, known_urls(chosen))
     titles = {k: s["title"] for k, s in load_sources().items()}
     yield {"type": "delta", "text": text}
     yield {"type": "done", "text": text, "refusal": False, "sources": answer.sources(chosen, titles, text),
