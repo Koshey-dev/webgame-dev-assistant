@@ -103,8 +103,8 @@ def test_draft_edits_never_touch_disk_and_diff_applies(project):
     async def go():
         c = client()
         await c.start()
-        await c.call("edit_file", {"path": "app/a.py", "old": "    return providers.complete(x)\n",
-                                   "new": "    return providers.complete(x, retries=2)\n"})
+        await c.call("edit_file", {"path": "app/a.py", "old": "    return providers.complete(x)\r\n",   # CRLF от модели
+                                   "new": "    return providers.complete(x, retries=2)\r\n"})
         assert "retries=2" in (await c.call("read_file", {"path": "app/a.py"}))["text"]   # модель видит свою правку
         assert (await c.call("search", {"pattern": "retries"}))["files"] == {"app/a.py": 1}
         await c.call("write_file", {"path": "reports/ads.md", "content": "# Отчёт"})

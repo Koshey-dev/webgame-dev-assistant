@@ -47,8 +47,8 @@ def git(*args, raw=False):
     except (OSError, subprocess.TimeoutExpired) as e:
         raise Failed(f"git не запустился: {e}") from e
     err = done.stderr.decode("utf-8", "replace").strip()
-    # Код 1 без ошибки — это `git grep` без совпадений, а не сбой.
-    if done.returncode and not (done.returncode == 1 and not err.startswith(("fatal", "error"))):
+    # Код 1 у `git grep` без ошибки — нет совпадений, а не сбой.
+    if done.returncode and not (args[0] == "grep" and done.returncode == 1 and not err.startswith(("fatal", "error"))):
         raise Failed(err.splitlines()[-1] if err else f"git {args[0]}: код {done.returncode}")
     return done.stdout if raw else done.stdout.decode("utf-8", "replace")
 
@@ -272,9 +272,9 @@ def edit_file(args, session):
     mine = draft(session)
     writable(path, mine)
     text = current(path, session)
-    old, new = args["old"], args["new"]
+    old, new = args["old"].replace("\r\n", "\n"), args["new"].replace("\r\n", "\n")
     if "\r\n" in text:                       # рабочая копия с CRLF, а модель пишет \n
-        old, new = old.replace("\r\n", "\n").replace("\n", "\r\n"), new.replace("\r\n", "\n").replace("\n", "\r\n")
+        old, new = old.replace("\n", "\r\n"), new.replace("\n", "\r\n")
     count = text.count(old) if old else 0
     if count != 1:
         raise Failed(f"{path}: заменяемый кусок найден {count} раз — нужен ровно один; "
