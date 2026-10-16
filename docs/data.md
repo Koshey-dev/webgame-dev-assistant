@@ -22,8 +22,8 @@
 | Поле | Тип | Что хранит |
 |------|-----|------------|
 | `id` | TEXT (ключ) |  |
-| `base` | TEXT | platforms, notes, project или code |
-| `kind` | TEXT | card, page, note, doc или code |
+| `base` | TEXT | platforms, notes, project, code или support |
+| `kind` | TEXT | card, page, note, doc, code или faq |
 | `platform` | TEXT | площадка; у баз «Проект» и «Код» пусто |
 | `ref` | TEXT | URL страницы, путь файла или файл:строка кода |
 | `title` | TEXT | страница или файл |

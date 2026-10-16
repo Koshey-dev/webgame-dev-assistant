@@ -14,6 +14,9 @@ DB_FILE = DATA / "assistant.db"
 NOTES = DATA / "notes"
 
 KNOWLEDGE = ROOT / "knowledge"
+# Поддержка игроков: FAQ игр (в git) и CRM — демо-JSON игроков и тикетов; настоящая подставляется путём.
+FAQ = ROOT / "support" / "faq"
+SUPPORT_CRM = Path(os.environ.get("SUPPORT_CRM") or ROOT / "support" / "crm.json")
 SOURCES = ROOT / "sources.toml"
 DOCS = ROOT / "docs"
 README = ROOT / "README.md"
