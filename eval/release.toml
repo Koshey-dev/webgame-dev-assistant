@@ -36,10 +36,11 @@ old = "<meta charset=\"utf-8\">\n"
 new = "<meta charset=\"utf-8\">\n<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Nunito:wght@800&display=swap\">\n"
 
 [[case.plant]]
-item = "Latin characters only"
-why = "файл с кириллицей в имени"
-file = "games/deep-mine/kit/заметка.txt"
-new = "Заметка про кирки.\n"
+item = "external links to social networks"
+why = "ссылка на группу VK в игре"
+file = "games/deep-mine/index.html"
+old = "</body>"
+new = "<a id=\"grupo\" href=\"https://vk.com/deepmine\" target=\"_blank\">VK</a>\n</body>"
 
 [[case.plant]]
 item = "No external analytics"
@@ -61,3 +62,15 @@ why = "награда за открытие ролика, а не за досм�
 file = "shared/playgama/anuncios.js"
 old = "(estado) => { if (estado === 'rewarded') premio = true; }"
 new = "(estado) => { if (estado === 'opened') premio = true; }"
+
+# Имя файла кириллицей не пропускает уже pack.py игр: выпуск должен встать на сборке,
+# до чек-листа и модели.
+[[case]]
+id = "badname"
+stop = "сборка"
+
+[[case.plant]]
+item = "Latin characters only"
+why = "файл с кириллицей в имени"
+file = "games/deep-mine/kit/заметка.txt"
+new = "Заметка про кирки.\n"

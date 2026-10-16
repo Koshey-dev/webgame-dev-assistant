@@ -58,8 +58,14 @@ def find(items, words):
 
 def grade(case, r, disputed, repo):
     items = r.get("items", [])
+    if case.get("stop"):                    # выпуск обязан встать до чек-листа
+        stopped = not items and any(b["n"] == 0 for b in r.get("blockers", []))
+        return {"ok": stopped, "notes": [] if stopped else [f"выпуск не встал на этапе «{case['stop']}»: "
+                                                             f"{r.get('status')}"],
+                "caught": int(stopped), "false": 0, "patch": None}
     if not items:
-        return {"ok": False, "notes": [f"чек-листа нет: {r['status']}"], "caught": 0, "false": 0}
+        why = "; ".join(b["why"][-200:] for b in r.get("blockers", [])) or r["status"]
+        return {"ok": False, "notes": [f"до чек-листа не дошло: {why}"], "caught": 0, "false": 0, "patch": None}
     notes, caught, expected = [], 0, set()
     for p in case.get("plant", []):
         item = find(items, p["item"])
@@ -91,6 +97,7 @@ def grade(case, r, disputed, repo):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--rounds", type=int, default=3)
+    ap.add_argument("--case", help="только этот кейс")
     args = ap.parse_args()
     suite = tomllib.loads((ROOT / "eval" / "release.toml").read_text(encoding="utf-8"))
     checklist = (config.DATA / "release" / f"checklist-{suite['platform']}.md").read_text(encoding="utf-8")
@@ -100,9 +107,10 @@ def main():
     out_dir = config.DATA / "eval" / f"release-{stamp}"
     work = Path(tempfile.mkdtemp(prefix="wda-release-"))
     provider = providers.resolve("deepseek")
-    rows, total = [], {c["id"]: [0, 0] for c in suite["case"]}
+    cases = [c for c in suite["case"] if not args.case or c["id"] == args.case]
+    rows, total = [], {c["id"]: [0, 0] for c in cases}
     data = config.DATA
-    for case in suite["case"]:
+    for case in cases:
         repo = work / case["id"]
         clone(config.GAMES_ROOT, suite["commit"], repo, case.get("plant", []))
         for n in range(1, args.rounds + 1):
