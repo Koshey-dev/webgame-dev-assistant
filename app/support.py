@@ -31,6 +31,7 @@ FAQ_FRAGMENTS = 4
 PLATFORM_FRAGMENTS = 2
 FAQ_THRESHOLD = float(os.environ.get("FAQ_THRESHOLD") or 0.5)
 TICKET = re.compile(r"^/ticket\s+(T-[\w-]+)", re.I)
+SLUG = re.compile(r"^[a-z0-9-]{1,40}$")
 
 # Похожее на попытку управлять моделью из текста игрока. Метка, а не фильтр:
 # текст всё равно уходит модели как данные — пометка лишь предупреждает.
@@ -207,8 +208,9 @@ def ticket_of(history):
 
 
 def game_title(game):
+    """Название игры из её FAQ. `game` приходит из баг-репорта: путь из него — только для честного slug."""
     path = config.FAQ / f"{game}.md"
-    head = path.read_text(encoding="utf-8").splitlines()[0] if path.exists() else ""
+    head = path.read_text(encoding="utf-8").splitlines()[0] if SLUG.match(game) and path.exists() else ""
     return head.lstrip("# ").strip() or game
 
 
@@ -242,10 +244,14 @@ async def ticket_answer(ident, question, history, provider, crm):
     await crm.start()
     raw, event = await call(crm, "ticket_get", {"id": ident})
     yield event
-    player, event = await call(crm, "player_get", {"id": raw["player"]})
-    yield event
-    others, event = await call(crm, "ticket_list", {"player": raw["player"]})
-    yield event
+    # Баг-репорт мог прийти без полей: игрок отправил только технику, CRM не нашла игрока.
+    raw = {"player": "", "game": "", "platform": "", "comment": "", "state": {}, **raw}
+    player, others = {}, {"tickets": []}
+    if raw["player"]:
+        player, event = await call(crm, "player_get", {"id": raw["player"]})
+        yield event
+        others, event = await call(crm, "ticket_list", {"player": raw["player"]})
+        yield event
     ticket = cleaned(raw)
     flags = {"injection": suspicious(raw), "cut": len(raw.get("comment", "")) > LIMIT["comment"]}
     found = contradictions(ticket, player)

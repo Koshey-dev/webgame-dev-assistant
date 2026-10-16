@@ -146,9 +146,9 @@ async def send(ident: str, body: SendIn, request: Request):
             command, _, rest = text.partition(" ") if text.startswith("/") else ("", "", text)
             bound = support.ticket_of(history)
             if command == "/ticket":
-                ident, _, question = rest.strip().partition(" ")
-                if ident:
-                    stream = support.ticket_answer(ident, question.strip(), history, provider,
+                ticket_id, _, question = rest.strip().partition(" ")    # не ident: это id чата для сохранения
+                if ticket_id:
+                    stream = support.ticket_answer(ticket_id, question.strip(), history, provider,
                                                    mcp.local_client(app, "/mcp/support"))
                 else:
                     stream = static("Нужен номер тикета: `/ticket T-1001`. Список — `/tickets`.", provider)

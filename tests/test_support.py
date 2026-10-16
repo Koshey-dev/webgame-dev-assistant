@@ -140,3 +140,27 @@ def test_reply_language_is_checked_and_retried(crm, monkeypatch):
         return [e async for e in support.ticket_answer("T-2", "", [], provider, mcp.local_client(app, "/mcp/support"))]
     done = asyncio.run(go())[-1]
     assert done["reply"].startswith("An unfinished level") and not done["warnings"]
+
+
+def test_ticket_turn_is_saved_to_its_chat(crm, monkeypatch):
+    """Регрессия, найденная AI-ревью PR №3: номер тикета затирал id чата, и ход не сохранялся."""
+    async def fake_complete(provider, messages, **kw):
+        return {"content": json.dumps({"diagnosis": "ok", "reply": "Проверьте вход."}), "tool_calls": []}
+
+    monkeypatch.setattr(support.providers, "complete", fake_complete)
+    monkeypatch.setattr(support.providers, "resolve", lambda choice, custom=None: {"id": "x", "title": "t", "kind": "openai"})
+    monkeypatch.setattr(support.rag, "search", lambda *a, **k: [])
+
+    async def go():
+        http = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t")
+        chat = (await http.post("/api/chats")).json()
+        r = await http.post(f"/api/chats/{chat['id']}/send", json={"text": "/ticket T-1", "model": "deepseek"})
+        assert r.status_code == 200 and '"done"' in r.text
+        saved = (await http.get(f"/api/chats/{chat['id']}")).json()
+        assert saved["title"] == "/ticket T-1" and len(saved["messages"]) == 2
+    asyncio.run(go())
+
+
+def test_untrusted_game_slug_stays_in_faq_folder():
+    assert support.game_title("../../README") == "../../README"         # не читает файл вне support/faq
+    assert support.game_title("mahjong1").startswith("Маджонг")
