@@ -173,7 +173,7 @@ class Direct:
         result = await self.server.call({"name": name, "arguments": args or {}}, self.session)
         if result.get("isError"):
             raise Failed(result["content"][0]["text"])
-        return result["structuredContent"]
+        return result.get("structuredContent") or json.loads(result["content"][0]["text"])
 
 
 def parse(r):

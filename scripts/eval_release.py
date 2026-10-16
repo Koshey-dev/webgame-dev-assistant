@@ -100,9 +100,13 @@ def main():
     ap.add_argument("--case", help="только этот кейс")
     args = ap.parse_args()
     suite = tomllib.loads((ROOT / "eval" / "release.toml").read_text(encoding="utf-8"))
-    checklist = (config.DATA / "release" / f"checklist-{suite['platform']}.md").read_text(encoding="utf-8")
     if not config.GAMES_ROOT:
         raise SystemExit("нет GAMES_ROOT в .env")
+    saved = config.DATA / "release" / f"checklist-{suite['platform']}.md"
+    if not saved.exists():
+        raise SystemExit(f"нет чек-листа {saved}: сохраняет его prepare — запустите /release или scripts/release.py "
+                         "с --checklist")
+    checklist = saved.read_text(encoding="utf-8")
     stamp = f"{datetime.now():%Y%m%d-%H%M}"
     out_dir = config.DATA / "eval" / f"release-{stamp}"
     work = Path(tempfile.mkdtemp(prefix="wda-release-"))
@@ -110,28 +114,30 @@ def main():
     cases = [c for c in suite["case"] if not args.case or c["id"] == args.case]
     rows, total = [], {c["id"]: [0, 0] for c in cases}
     data = config.DATA
-    for case in cases:
-        repo = work / case["id"]
-        clone(config.GAMES_ROOT, suite["commit"], repo, case.get("plant", []))
-        for n in range(1, args.rounds + 1):
-            config.DATA = out_dir / f"{case['id']}-{n}"     # свои папки выпуска у каждого круга
-            t0 = time.monotonic()
-            try:
-                r = asyncio.run(release.prepare(suite["game"], suite["platform"], checklist, repo=repo,
-                                                provider=provider, log=lambda _: None))
-            except (release.ReleaseError, providers.ProviderError) as e:
-                r = {"status": f"ошибка: {e}"}
-            g = grade(case, r, suite.get("disputed", []), repo)
-            total[case["id"]][0] += g["ok"]
-            total[case["id"]][1] += 1
-            rows.append({"case": case["id"], "round": n, "seconds": round(time.monotonic() - t0, 1), **g,
-                         "status": r.get("status"), "checked": release.summary(r)["checked"] if "items" in r else {}})
-            mark = "+" if g["ok"] else "-"
-            print(f"{mark} {case['id']:8} круг {n}  поймано {g['caught']}/{len(case.get('plant', []))}  "
-                  f"ложных {g['false']}  патч {g['patch']}  {rows[-1]['seconds']} с", flush=True)
-            for note in g["notes"]:
-                print(f"    {note}", flush=True)
-    config.DATA = data
+    try:
+        for case in cases:
+            repo = work / case["id"]
+            clone(config.GAMES_ROOT, suite["commit"], repo, case.get("plant", []))
+            for n in range(1, args.rounds + 1):
+                config.DATA = out_dir / f"{case['id']}-{n}"     # свои папки выпуска у каждого круга
+                t0 = time.monotonic()
+                try:
+                    r = asyncio.run(release.prepare(suite["game"], suite["platform"], checklist, repo=repo,
+                                                    provider=provider, log=lambda _: None))
+                except (release.ReleaseError, providers.ProviderError) as e:
+                    r = {"status": f"ошибка: {e}"}
+                g = grade(case, r, suite.get("disputed", []), repo)
+                total[case["id"]][0] += g["ok"]
+                total[case["id"]][1] += 1
+                rows.append({"case": case["id"], "round": n, "seconds": round(time.monotonic() - t0, 1), **g,
+                             "status": r.get("status"), "checked": release.summary(r)["checked"] if "items" in r else {}})
+                mark = "+" if g["ok"] else "-"
+                print(f"{mark} {case['id']:8} круг {n}  поймано {g['caught']}/{len(case.get('plant', []))}  "
+                      f"ложных {g['false']}  патч {g['patch']}  {rows[-1]['seconds']} с", flush=True)
+                for note in g["notes"]:
+                    print(f"    {note}", flush=True)
+    finally:
+        config.DATA = data          # подмена папки данных не переживает сбой круга
     out_dir.mkdir(parents=True, exist_ok=True)
     summary = {k: f"{v[0]}/{v[1]}" for k, v in total.items()}
     print(json.dumps(summary, ensure_ascii=False))
